@@ -1,7 +1,5 @@
 module ImmerseCompose
 
-import ..DisplayGadfly: handle
-
 import Compose
 import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, ListNode, ComposeNode, ParentDrawContext
 import Compose: LinePrimitive
@@ -9,6 +7,7 @@ import Compose: LinePrimitive
 using Compat, Colors #, GtkUtilities
 
 export
+    find_tagged,
     handle,
     bareobj,
     getproperty,
@@ -205,6 +204,25 @@ end
 
 _find_parent(obj, tag) = false, obj
 
+# Find the enclosing Context (parent) of all tagged Forms
+function find_tagged(root)
+    handles = Dict{Symbol,Context}()
+    find_tagged!(handles, root)
+end
+
+function find_tagged!(handles, obj::Iterables)
+    for item in iterable(obj)
+        if has_tag(item)
+            handles[item.tag] = obj
+        else
+            find_tagged!(handles, item)
+        end
+    end
+    handles
+end
+
+find_tagged!(handles, obj) = obj
+
 # Find the nested series of containers leading to a tagged object
 function find_path(root::Context, tag)
     ret = Any[]
@@ -228,8 +246,10 @@ find_path!(ret, obj, tag) = false
 
 
 has_tag(form::Form, tag) = form.tag == tag
+has_tag(form::Form)      = form.tag != Compose.empty_tag
 
 has_tag(obj, tag) = false
+has_tag(obj)      = false
 
 
 handle(ctx::Context, tag) = find_parent(ctx, tag)

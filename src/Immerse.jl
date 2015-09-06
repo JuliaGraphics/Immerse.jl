@@ -14,10 +14,10 @@ export
     setproperty!
 
 # Stuff for Gadfly/Compose
-include("display_gadfly.jl")
-using .DisplayGadfly
 include("compose.jl")
 using .ImmerseCompose
+include("display_gadfly.jl")
+using .DisplayGadfly
 
 # Generic (?)
 include("hit_test.jl")

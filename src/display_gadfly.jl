@@ -3,6 +3,7 @@ module DisplayGadfly
 using Gtk, GtkUtilities, Cairo
 import Gadfly, Compose
 import Gadfly: Plot
+import ..Immerse: find_tagged
 
 export
     Figure,
@@ -10,20 +11,25 @@ export
     closeall,
     figure,
     gcf,
-    render_backend,
-    handle
+    render_backend
 
-# Display code was copied from Winston. The original contributors
-# to that code included Mike Nolta, Jameson Nash, @slangangular,
-# and likely others.
+# Display code was copied & modified from Winston. The original
+# contributors to that code included Mike Nolta, Jameson Nash,
+# @slangangular, and likely others.
 
 type Figure
     canvas::GtkCanvas
     cc::Compose.Context
+    handles::Dict{Symbol,Compose.Context}
 end
-Figure(c::GtkCanvas, plot::Plot) = Figure(c, Gadfly.render(plot))
 
-handle(f::Figure, tag) = handle(f.cc, tag)
+function Figure(c::GtkCanvas, plot::Plot)
+    cc = Gadfly.render(plot)
+    handles = find_tagged(cc)
+    Figure(c, cc, handles)
+end
+
+Base.getindex(f::Figure, tag::Symbol) = f.handles[tag]
 
 type GadflyDisplay <: Display
     figs::Dict{Int,Figure}
@@ -38,12 +44,11 @@ pushdisplay(_display)
 
 Base.display(d::GadflyDisplay, f::Figure) = display(f.canvas, f.cc)
 
-Base.display(d::GadflyDisplay, p::Plot) = display(d, Gadfly.render(p))
-
-function Base.display(d::GadflyDisplay, cc::Compose.Context)
+function Base.display(d::GadflyDisplay, p::Plot)
     isempty(d.figs) && figure()
     f = curfig(d)
-    f.cc = cc
+    f.cc = Gadfly.render(p)
+    f.handles = find_tagged(f.cc)
     display(d, f)
     f
 end
@@ -110,25 +115,20 @@ function dropfig(d::GadflyDisplay, i::Int)
 end
 
 const empty_cc = Compose.Context()
-current_cc = empty_cc
 
 function figure(;name::String="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)
     w = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
-    if isempty(_display.figs)
-        global current_cc = empty_cc
-    end
-    addfig(_display, i, Figure(w,current_cc))
+    addfig(_display, i, Figure(w,empty_cc,Dict{Symbol,Compose.Context}()))
 end
 
 function figure(i::Integer)
     switchfig(_display, i)
     fig = curfig(_display)
-    global current_cc = fig.cc
-    display(_display, fig.cc)
-    Gtk.present(Gtk.toplevel(c))
+    display(_display, fig)
+    Gtk.present(Gtk.toplevel(fig.canvas))
     nothing
 end
 
