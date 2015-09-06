@@ -3,6 +3,8 @@ module Immerse
 import Gadfly, Compose, Gtk, GtkUtilities
 using Colors, Cairo
 
+import Gtk: GtkCanvas
+
 export
     closefig,
     closeall,

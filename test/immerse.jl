@@ -7,4 +7,4 @@ p = plot(x=x,y=y,Geom.line(tag=:line))
 hfig = display(p)
 hline = hfig[:line]
 
-Immerse.hit(hfig, hline, (mindist, itemindex, entryindex) -> Immerse.circle_center(hfig.canvas, hline, itemindex, entryindex))
+Immerse.hit(hline, (mindist, itemindex, entryindex) -> Immerse.circle_center(hline, itemindex, entryindex))

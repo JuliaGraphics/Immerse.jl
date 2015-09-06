@@ -1,9 +1,9 @@
-const _hit_canvases = Dict{Gtk.GtkCanvas,Set{Any}}()
+const _hit_canvases = Dict{GtkCanvas,Set{Any}}()
 const _hit_obj = Dict()
 
 objcoords(c, obj) = GtkUtilities.guidata[c, :coords][bareobj(obj).tag]
 
-function hit(c::Gtk.GtkCanvas, obj, cb)
+function hit(c::GtkCanvas, obj, cb)
     bobj = bareobj(obj)
     if !haskey(_hit_canvases, c)
         _hit_canvases[c] = Set()
@@ -17,7 +17,7 @@ function hit(c::Gtk.GtkCanvas, obj, cb)
     end
 end
 
-function hit(c::Gtk.GtkCanvas, obj, state::Bool)
+function hit(c::GtkCanvas, obj, state::Bool)
     state == false || error("must supply a callback function")
     bobj = bareobj(obj)
     delete!(_hit_obj, bobj)
@@ -25,8 +25,8 @@ function hit(c::Gtk.GtkCanvas, obj, state::Bool)
     nothing
 end
 
-hit(f::Figure, obj, state::Bool) = hit(f.canvas, obj, state)
-hit(f::Figure, obj, state)       = hit(f.canvas, obj, state)
+hit(h::Handle, state::Bool) = hit(h.figure.canvas, h.obj, state)
+hit(h::Handle, cb)          = hit(h.figure.canvas, h.obj, cb)
 
 function hitcb(c, x, y)
     hitables = _hit_canvases[c]
@@ -50,11 +50,11 @@ end
 
 # A good callback function for testing
 #    hit(c, obj, (mindist, itemindex, entryindex) -> circle_center(c, obj, itemindex, entryindex))
-function circle_center(c, obj, itemindex, entryindex; color=RGB{U8}(1,0,0))
+function circle_center(c::GtkCanvas, obj, itemindex, entryindex; color=RGB{U8}(1,0,0))
     coords = objcoords(c, obj)
     backend = render_backend(c)
     x, y = hitcenter(backend, coords, bareobj(obj), itemindex, entryindex)
-    ctx = Cairo.getgc(c)
+    ctx = getgc(c)
     set_source(ctx, color)
     set_line_width(ctx, 2)
     arc(ctx, x, y, 5, 0, 2pi)
@@ -62,3 +62,6 @@ function circle_center(c, obj, itemindex, entryindex; color=RGB{U8}(1,0,0))
     Gtk.reveal(c)
     nothing
 end
+
+circle_center(handle::Handle, itemindex, entryindex; color=RGB{U8}(1,0,0)) =
+    circle_center(handle.figure.canvas, handle.obj, itemindex, entryindex; color=color)

@@ -6,6 +6,7 @@ import Gadfly: Plot
 import ..Immerse: find_tagged
 
 export
+    Handle,
     Figure,
     closefig,
     closeall,
@@ -17,16 +18,40 @@ export
 # contributors to that code included Mike Nolta, Jameson Nash,
 # @slangangular, and likely others.
 
+# Handles keep a reference to a specific graphical element
+# and also point to the enclosing figure. This means you
+# can pass an object handle and gain access to everything
+# you need for drawing.
+immutable Handle{F}
+    obj::Compose.Context  # inner object Context, not outer Plot Context
+    figure::F
+end
+
+Base.show(io::IO, h::Handle) = print(io, bareobj(h.obj).tag, " handle")
+
+# While figures are by default associated with Windows (each with a
+# single Canvas), you can have multiple figures per window.
 type Figure
     canvas::GtkCanvas
     cc::Compose.Context
-    handles::Dict{Symbol,Compose.Context}
+    handles::Dict{Symbol,Handle{Figure}}
+
+    function Figure(c::GtkCanvas, plot::Plot)
+        cc = Gadfly.render(plot)
+        f = new(c, cc)
+        set_handles!(f)
+    end
+    Figure(c::GtkCanvas) = new(c)
 end
 
-function Figure(c::GtkCanvas, plot::Plot)
-    cc = Gadfly.render(plot)
-    handles = find_tagged(cc)
-    Figure(c, cc, handles)
+function set_handles!(f)
+    bare_handles = find_tagged(f.cc)
+    handles = Dict{Symbol,Handle{Figure}}()
+    for (k,v) in bare_handles
+        handles[k] = Handle(v,f)
+    end
+    f.handles = handles
+    f
 end
 
 Base.getindex(f::Figure, tag::Symbol) = f.handles[tag]
@@ -48,7 +73,7 @@ function Base.display(d::GadflyDisplay, p::Plot)
     isempty(d.figs) && figure()
     f = curfig(d)
     f.cc = Gadfly.render(p)
-    f.handles = find_tagged(f.cc)
+    set_handles!(f)
     display(d, f)
     f
 end
@@ -114,14 +139,12 @@ function dropfig(d::GadflyDisplay, i::Int)
     d.current_fig = isempty(d.fig_order) ? 0 : d.fig_order[end]
 end
 
-const empty_cc = Compose.Context()
-
 function figure(;name::String="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)
     w = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
-    addfig(_display, i, Figure(w,empty_cc,Dict{Symbol,Compose.Context}()))
+    addfig(_display, i, Figure(w))
 end
 
 function figure(i::Integer)
