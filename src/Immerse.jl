@@ -19,4 +19,7 @@ using .DisplayGadfly
 include("compose.jl")
 using .ImmerseCompose
 
+# Generic (?)
+include("hit_test.jl")
+
 end # module
