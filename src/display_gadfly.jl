@@ -3,7 +3,7 @@ module DisplayGadfly
 using Gtk, GtkUtilities, Cairo
 import Gadfly, Compose
 import Gadfly: Plot
-import ..Immerse: find_tagged
+import ..Immerse: find_tagged, bareobj
 
 export
     Handle,
