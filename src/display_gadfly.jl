@@ -218,6 +218,12 @@ function dev2data(widget, x, y)
 end
 
 GtkUtilities.panzoom(f::Figure, args...) = panzoom(f.canvas, args...)
+function GtkUtilities.panzoom(f::Figure)
+    aes = _aes(f)
+    viewx = (aes.xviewmin, aes.xviewmax)
+    viewy = (aes.yviewmin, aes.yviewmax)
+    panzoom(f.canvas, viewx, viewy)
+end
 
 function GtkUtilities.add_pan_mouse(f::Figure; kwargs...)
     aes = _aes(f)

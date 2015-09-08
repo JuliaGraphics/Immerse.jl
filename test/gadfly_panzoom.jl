@@ -7,7 +7,7 @@ p = plot(x=1:length(y),y=y,Geom.line(tag=:line))
 
 hfig = display(p)
 
-panzoom(hfig, (1,length(y)), (minimum(y),maximum(y)))
+panzoom(hfig)
 idz = add_zoom_mouse(hfig)
 idp = add_pan_mouse(hfig)
 idzk = add_zoom_key(hfig)
