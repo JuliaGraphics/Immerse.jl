@@ -1,59 +1,74 @@
-const _hit_canvases = Dict{GtkCanvas,Set{Any}}()
-const _hit_obj = Dict()
+module HitTest
 
-objcoords(c, obj) = GtkUtilities.guidata[c, :coords][bareobj(obj).tag]
+using Gtk, GtkUtilities, ..Graphics, Colors
+import Compose
+import ..Immerse: nearest, hitcenter, Figure, render_backend, find_object
 
-function hit(c::GtkCanvas, obj, cb)
-    bobj = bareobj(obj)
-    if !haskey(_hit_canvases, c)
-        _hit_canvases[c] = Set()
-    end
-    push!(_hit_canvases[c], bobj)
-    _hit_obj[bobj] = cb
-    c.mouse.button1press = (widget, event) -> begin
-        if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-            hitcb(widget, event.x, event.y)
+export
+    hit,
+    circle_center
+
+const _hit_data = Dict{Figure,Dict{Symbol,Any}}()
+
+function hit(fig::Figure, tag::Symbol, cb)
+    if !haskey(_hit_data, fig)
+        _hit_data[fig] = Dict{Symbol,Any}()
+        c = fig.canvas
+        c.mouse.button1press = (widget, event) -> begin
+            if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
+                hitcb(fig, event.x, event.y)
+            end
         end
     end
-end
-
-function hit(c::GtkCanvas, obj, state::Bool)
-    state == false || error("must supply a callback function")
-    bobj = bareobj(obj)
-    delete!(_hit_obj, bobj)
-    delete!(_hit_canvases[c], bobj)
+    _hit_data[fig][tag] = (true, cb)   # starts in "on" position
     nothing
 end
 
-hit(h::Handle, state::Bool) = hit(h.figure.canvas, h.obj, state)
-hit(h::Handle, cb)          = hit(h.figure.canvas, h.obj, cb)
+function hit(fig::Figure, tag::Symbol, state::Bool)
+    dct = _hit_data[c]
+    olddata = dct[tag]
+    dct[tag] = (state, olddata.cb)
+    nothing
+end
 
-function hitcb(c, x, y)
-    hitables = _hit_canvases[c]
+# callback function for hit-testing
+function hitcb(f, x, y)
+    c = f.canvas
+    hitables = _hit_data[f]
     coords = GtkUtilities.guidata[c, :coords]
     mindist = Inf
-    obj = nothing
+    obj = Compose.empty_tag
     itemindex, entryindex = 0, 0
     backend = render_backend(c)
-    for ht in hitables
-        dist, iindex, eindex = nearest(backend, coords[ht.tag], ht, x, y)
+    local objcb
+    for (tag, data) in hitables
+        state, cb = data
+        !state && continue
+        # Find the object in the rendered figure
+        form = find_object(f.cc, tag)
+        dist, iindex, eindex = nearest(backend, coords[tag], form, x, y)
         if dist < mindist
             mindist = dist
-            obj = ht
+            obj = tag
+            objcb = cb
             itemindex = iindex
             entryindex = eindex
         end
     end
-    cb = _hit_obj[obj]
-    cb(mindist, itemindex, entryindex)
+    if obj != Compose.empty_tag
+        objcb(mindist, itemindex, entryindex)
+    end
+    nothing
 end
 
 # A good callback function for testing
-#    hit(c, obj, (mindist, itemindex, entryindex) -> circle_center(c, obj, itemindex, entryindex))
-function circle_center(c::GtkCanvas, obj, itemindex, entryindex; color=RGB{U8}(1,0,0))
-    coords = objcoords(c, obj)
+#    hit(fig, tag, (mindist, itemindex, entryindex) -> circle_center(fig, tag, itemindex, entryindex))
+function circle_center(f::Figure, tag, itemindex, entryindex; color=RGB{U8}(1,0,0))
+    c = f.canvas
+    coords = GtkUtilities.guidata[c, :coords][tag]
+    form = find_object(f.cc, tag)
     backend = render_backend(c)
-    x, y = hitcenter(backend, coords, bareobj(obj), itemindex, entryindex)
+    x, y = hitcenter(backend, coords, form, itemindex, entryindex)
     ctx = getgc(c)
     set_source(ctx, color)
     set_line_width(ctx, 2)
@@ -63,5 +78,4 @@ function circle_center(c::GtkCanvas, obj, itemindex, entryindex; color=RGB{U8}(1
     nothing
 end
 
-circle_center(handle::Handle, itemindex, entryindex; color=RGB{U8}(1,0,0)) =
-    circle_center(handle.figure.canvas, handle.obj, itemindex, entryindex; color=color)
+end  # module

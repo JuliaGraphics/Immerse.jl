@@ -28,5 +28,6 @@ using .DisplayGadfly
 
 # Generic (?)
 include("hit_test.jl")
+using .HitTest
 
 end # module

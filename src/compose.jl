@@ -7,6 +7,7 @@ import Compose: LinePrimitive, SVGClass
 using Compat, Colors #, GtkUtilities
 
 export
+    find_object,
     find_tagged,
     handle,
     bareobj,
