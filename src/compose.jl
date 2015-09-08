@@ -1,8 +1,8 @@
 module ImmerseCompose
 
 import Compose
-import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, ListNode, ComposeNode, ParentDrawContext
-import Compose: LinePrimitive
+import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, ListNode, ComposeNode, ParentDrawContext, MatrixTransform
+import Compose: LinePrimitive, SVGClass
 
 using Compat, Colors #, GtkUtilities
 
@@ -13,7 +13,9 @@ export
     getproperty,
     setproperty!,
     nearest,
-    hitcenter
+    hitcenter,
+    absolute_to_data,
+    device_to_data
 
 typealias ContainersWithChildren Union(Context,Table)
 typealias Iterables Union(ContainersWithChildren, AbstractArray)
@@ -23,9 +25,9 @@ iterable(a::AbstractArray) = a
 
 # Override Compose's drawing to keep track of coordinates of tagged objects
 function Compose.draw(backend::Backend, root_canvas::Context)
-    coords = Main.Immerse.ImmerseCompose.drawpart(backend, root_canvas)
+    coords, panelcoords = Main.Immerse.ImmerseCompose.drawpart(backend, root_canvas)
     Compose.finish(backend)
-    coords
+    coords, panelcoords
 end
 
 # Copied from Compose, adding the coords output
@@ -38,8 +40,9 @@ function drawpart(backend::Backend, root_container::Container)
     # collect and sort container children
     container_children = Array((@compat Tuple{Int, Int, Container}), 0)
 
-    # store coordinates of tagged objects
+    # store coordinates of tagged objects and plotpanels
     coords = Dict{Symbol,Any}()
+    panelcoords = Any[]  # FIXME?: tables (subplotgrid)
 
     while !isempty(S)
         s = pop!(S)
@@ -132,6 +135,9 @@ function drawpart(backend::Backend, root_container::Container)
                     coords[child.tag] = (transform, units, box)
                 end
             end
+            if isa(child, SVGClass) && length(child.primitives) == 1 && child.primitives[1].value == "plotpanel"
+                push!(panelcoords, (transform, units, box))
+            end
         end
 
         for child in ctx.children
@@ -147,7 +153,7 @@ function drawpart(backend::Backend, root_container::Container)
         end
         empty!(container_children)
     end
-    coords
+    coords, panelcoords
 end
 
 # Testing utilities
@@ -309,6 +315,27 @@ function string_compact(obj)
     showcompact(io, obj)
     takebuf_string(io)
 end
+
+# Absolute-to-relative coordinate transformations
+function device_to_data(backend::Backend, x, y, transform, unit_box::UnitBox, parent_box::AbsoluteBoundingBox)
+    xmm, ymm = x/backend.ppmm, y/backend.ppmm
+    absolute_to_data(x, y, transform, unit_box, parent_box)
+end
+
+function absolute_to_data(x, y, transform, unit_box::UnitBox, parent_box::AbsoluteBoundingBox)
+    xt, yt = invert_transform(transform, x, y)
+    (unit_box.x0 + unit_box.width *(xt-parent_box.x0)/parent_box.width,
+     unit_box.y0 + unit_box.height*(yt-parent_box.y0)/parent_box.height)
+end
+
+invert_transform(::IdentityTransform, x, y) = x, y
+
+function invert_transform(t::MatrixTransform, x, y)
+    @assert t.M[3,1] == t.M[3,2] == 0
+    xyt = t.M\[x, y, 1.0]
+    xyt[1], xyt[2]
+end
+
 
 # Hit testing
 

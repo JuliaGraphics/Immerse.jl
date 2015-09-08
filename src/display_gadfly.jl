@@ -1,9 +1,10 @@
 module DisplayGadfly
 
-using Gtk, GtkUtilities, Cairo
+using Gtk, GtkUtilities, ..Graphics, Colors
+
 import Gadfly, Compose
-import Gadfly: Plot
-import ..Immerse: find_tagged, bareobj
+import Gadfly: Plot, Aesthetics
+import ..Immerse: find_tagged, bareobj, absolute_to_data
 
 export
     Handle,
@@ -12,84 +13,78 @@ export
     closeall,
     figure,
     gcf,
-    render_backend
+    render_backend,
+    set_limits!
+
+const ppmm = 72/25.4   # pixels per mm FIXME? Get from backend? See dev2data.
 
 # Display code was copied & modified from Winston. The original
 # contributors to that code included Mike Nolta, Jameson Nash,
 # @slangangular, and likely others.
 
-# Handles keep a reference to a specific graphical element
-# and also point to the enclosing figure. This means you
-# can pass an object handle and gain access to everything
-# you need for drawing.
-immutable Handle{F}
-    obj::Compose.Context  # inner object Context, not outer Plot Context
-    figure::F
-end
-
-Base.show(io::IO, h::Handle) = print(io, bareobj(h.obj).tag, " handle")
-
 # While figures are by default associated with Windows (each with a
 # single Canvas), you can have multiple figures per window.
 type Figure
     canvas::GtkCanvas
-    cc::Compose.Context
-    handles::Dict{Symbol,Handle{Figure}}
+    prepped         # tuple, a pre-processed Plot to speed rendering
+    cc::Compose.Context   # fully-rendered Plot (useful for hit-testing)
 
-    function Figure(c::GtkCanvas, plot::Plot)
-        cc = Gadfly.render(plot)
-        f = new(c, cc)
-        set_handles!(f)
+    function Figure(c::GtkCanvas, p::Plot)
+        prepped = Gadfly.render_prepare(p)
+        cc = render_finish(prepped; dynamic=false)
+        new(c, prepped, cc)
     end
     Figure(c::GtkCanvas) = new(c)
 end
 
-function set_handles!(f)
-    bare_handles = find_tagged(f.cc)
-    handles = Dict{Symbol,Handle{Figure}}()
-    for (k,v) in bare_handles
-        handles[k] = Handle(v,f)
-    end
-    f.handles = handles
-    f
-end
-
-Base.getindex(f::Figure, tag::Symbol) = f.handles[tag]
+_plot(prepped) = prepped[1]
+_plot(fig::Figure) = _plot(fig.prepped)
+_aes(prepped) = prepped[3]
+_aes(fig::Figure) = _aes(fig.prepped)
 
 type GadflyDisplay <: Display
     figs::Dict{Int,Figure}
     fig_order::Vector{Int}
     current_fig::Int
     next_fig::Int
+
     GadflyDisplay() = new(Dict{Int,Figure}(), Int[], 0, 1)
 end
 
 const _display = GadflyDisplay()
 pushdisplay(_display)
 
-Base.display(d::GadflyDisplay, f::Figure) = display(f.canvas, f.cc)
+Base.display(d::GadflyDisplay, f::Figure) = display(f.canvas, f)
 
 function Base.display(d::GadflyDisplay, p::Plot)
     isempty(d.figs) && figure()
     f = curfig(d)
-    f.cc = Gadfly.render(p)
-    set_handles!(f)
-    display(d, f)
+    if p.theme.background_color == nothing
+        # FIXME: someday one will want to plot transparently.
+        # Might be better for Gadfly to default to :auto, and then each
+        # renderer can pick how to resolve that (and reserve `nothing`
+        # for users who want to turn off backgrounds manually).
+        p.theme.background_color = colorant"white"
+    end
+    f.prepped = Gadfly.render_prepare(p)
+    f.cc = render_finish(f.prepped; dynamic=false)
+    display(f.canvas, f)
     f
 end
 
-function Base.display(c::GtkCanvas, cc::Compose.Context)
+function Base.display(c::GtkCanvas, f::Figure)
     c.draw = let bad=false
         function (_)
             bad && return
-            ctx = getgc(c)
-            # Fill with a white background
-            set_source_rgb(ctx, 1, 1, 1)
-            paint(ctx)
+            viewx = get(guidata, (c, :viewx), nothing)
+            if viewx != nothing
+                viewy = guidata[c, :viewy]
+                set_limits!(f, viewx, viewy)
+            end
             # Render
             backend = render_backend(c)
             try
-                guidata[c,:coords] = Compose.draw(backend, cc)
+                guidata[c,:coords], guidata[c,:panelcoords] = Compose.draw(backend, f.cc)
             catch e
                 bad = true
                 rethrow(e)
@@ -174,5 +169,72 @@ function gtkdestroy(c::GtkCanvas)
     Gtk.destroy(Gtk.toplevel(c))
     nothing
 end
+
+function render_finish(prep; kwargs...)
+    p = _plot(prep)
+    root_context = Gadfly.render_prepared(prep...; kwargs...)
+
+    ctx =  Compose.pad_inner(root_context, p.theme.plot_padding)
+
+    if p.theme.background_color != nothing
+        Compose.compose!(ctx, (Compose.context(order=-1000000),
+                               Compose.fill(p.theme.background_color),
+                               Compose.stroke(nothing), Compose.rectangle()))
+    end
+
+    return ctx
+end
+
+function set_ticks!(aes::Aesthetics, viewx, viewy)
+    xtick = Gadfly.optimize_ticks(viewx.min, viewx.max)[1]
+    ytick = Gadfly.optimize_ticks(viewy.min, viewy.max)[1]
+    aes.xtick = aes.xgrid = xtick
+    aes.ytick = aes.ygrid = ytick
+    aes.xtickvisible = fill(true, length(xtick))
+    aes.ytickvisible = fill(true, length(ytick))
+    aes.xtickscale = ones(length(xtick))
+    aes.ytickscale = ones(length(ytick))
+    aes.xviewmin, aes.xviewmax = viewx.min, viewx.max
+    aes.yviewmin, aes.yviewmax = viewy.min, viewy.max
+    aes
+end
+
+function set_limits!(f::Figure, viewx, viewy)
+    aes = _aes(f)
+    if (aes.xviewmin, aes.xviewmax) != (viewx.min, viewx.max) ||
+       (aes.yviewmin, aes.yviewmax) != (viewy.min, viewy.max)
+        set_ticks!(aes, viewx, viewy)
+        f.cc = render_finish(f.prepped; dynamic=false)
+    end
+    f
+end
+
+function dev2data(widget, x, y)
+    xmm, ymm = x/ppmm, y/ppmm
+    pc = guidata[widget,:panelcoords]
+    @assert length(pc) == 1
+    transform, unit_box, parent_box = pc[1]
+    absolute_to_data(xmm, ymm, transform, unit_box, parent_box)
+end
+
+GtkUtilities.panzoom(f::Figure, args...) = panzoom(f.canvas, args...)
+
+function GtkUtilities.add_pan_mouse(f::Figure; kwargs...)
+    aes = _aes(f)
+    xflip = aes.xtick[end] < aes.xtick[1]
+    yflip = aes.ytick[end] > aes.ytick[1]
+    add_pan_mouse(f.canvas; fliphoriz=xflip, flipvert=yflip, kwargs...)
+end
+
+GtkUtilities.add_zoom_mouse(f::Figure; kwargs...) = add_zoom_mouse(f.canvas; user_to_data=(c,x,y)->dev2data(c,x,y), kwargs...)
+
+function GtkUtilities.add_pan_key(f::Figure; kwargs...)
+    aes = _aes(f)
+    xflip = aes.xtick[end] < aes.xtick[1]
+    yflip = aes.ytick[end] > aes.ytick[1]
+    add_pan_key(f.canvas; fliphoriz=xflip, flipvert=yflip, kwargs...)
+end
+
+GtkUtilities.add_zoom_key(f::Figure; kwargs...) = add_zoom_key(f.canvas; kwargs...)
 
 end # module

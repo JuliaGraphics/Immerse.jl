@@ -1,7 +1,12 @@
 module Immerse
 
 import Gadfly, Compose, Gtk, GtkUtilities
-using Colors, Cairo
+using Colors
+if VERSION < v"0.4.0-dev"
+    using Base.Graphics
+else
+    using Graphics
+end
 
 import Gtk: GtkCanvas
 
