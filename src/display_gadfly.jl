@@ -18,6 +18,16 @@ export
 
 const ppmm = 72/25.4   # pixels per mm FIXME? Get from backend? See dev2data.
 
+immutable PanZoomCallbacks
+    idzm::Tuple{UInt64,UInt64}
+    idzk::UInt64
+    idpm::UInt64
+    idpk::UInt64
+end
+
+PanZoomCallbacks() = PanZoomCallbacks((UInt64(0), UInt64(0)), 0, 0, 0)
+initialized(pzc::PanZoomCallbacks) = pzc.idzk != 0
+
 # Display code was copied & modified from Winston. The original
 # contributors to that code included Mike Nolta, Jameson Nash,
 # @slangangular, and likely others.
@@ -28,13 +38,14 @@ type Figure
     canvas::GtkCanvas
     prepped         # tuple, a pre-processed Plot to speed rendering
     cc::Compose.Context   # fully-rendered Plot (useful for hit-testing)
+    panzoom_cb::PanZoomCallbacks
 
     function Figure(c::GtkCanvas, p::Plot)
         prepped = Gadfly.render_prepare(p)
         cc = render_finish(prepped; dynamic=false)
-        new(c, prepped, cc)
+        new(c, prepped, cc, PanZoomCallbacks())
     end
-    Figure(c::GtkCanvas) = new(c)
+    Figure(c::GtkCanvas) = new(c, nothing, Compose.Context(), PanZoomCallbacks())
 end
 
 _plot(prepped) = prepped[1]
@@ -138,8 +149,15 @@ function figure(;name::String="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)
-    w = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
-    addfig(_display, i, Figure(w))
+    c = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
+    f = Figure(c)
+    signal_connect(guidata[c,:zoom_button], "clicked") do widget
+        panzoom_cb(f)
+    end
+    signal_connect(guidata[c,:fullview], "clicked") do widget
+        fullview_cb(f)
+    end
+    addfig(_display, i, f)
 end
 
 function figure(i::Integer)
@@ -157,12 +175,23 @@ closefig(i::Integer) = gtkdestroy(getfig(_display,i).canvas)
 closeall() = (map(closefig, keys(_display.figs)); nothing)
 
 function gtkwindow(name, w, h, closecb=nothing)
+    builder = @GtkBuilder(filename=joinpath(splitdir(@__FILE__)[1], "toolbar.glade"))
+    box = @GtkBox(:v)
+    tb = GAccessor.object(builder, "toolbar")
+    push!(box, tb)
+    zb = GAccessor.object(builder, "zoom_button")
+    fullview = GAccessor.object(builder, "fullview")
     c = @GtkCanvas()
-    win = @GtkWindow(c, name, w, h)
+    setproperty!(c, :expand, true)
+    push!(box, c)
+    guidata[c, :zoom_button] = zb
+    guidata[c, :fullview] = fullview
+    win = @GtkWindow(box, name, w, h)
     if closecb !== nothing
         Gtk.on_signal_destroy(closecb, win)
     end
-    showall(c)
+    showall(win)
+    c
 end
 
 function gtkdestroy(c::GtkCanvas)
@@ -242,5 +271,47 @@ function GtkUtilities.add_pan_key(f::Figure; kwargs...)
 end
 
 GtkUtilities.add_zoom_key(f::Figure; kwargs...) = add_zoom_key(f.canvas; kwargs...)
+
+function block(f::Figure, pcz::PanZoomCallbacks)
+    signal_handler_block(f.canvas, pcz.idzm[1])
+    signal_handler_block(f.canvas, pcz.idzm[2])
+    signal_handler_block(f.canvas, pcz.idzk)
+    signal_handler_block(f.canvas, pcz.idpm)
+    signal_handler_block(f.canvas, pcz.idpk)
+end
+
+function unblock(f::Figure, pcz::PanZoomCallbacks)
+    signal_handler_unblock(f.canvas, pcz.idzm[1])
+    signal_handler_unblock(f.canvas, pcz.idzm[2])
+    signal_handler_unblock(f.canvas, pcz.idzk)
+    signal_handler_unblock(f.canvas, pcz.idpm)
+    signal_handler_unblock(f.canvas, pcz.idpk)
+end
+
+function PanZoomCallbacks(f::Figure)
+    panzoom(f)
+    PanZoomCallbacks(add_zoom_mouse(f),
+                     add_zoom_key(f),
+                     add_pan_mouse(f),
+                     add_pan_key(f))
+end
+
+function panzoom_cb(f::Figure)
+    if !initialized(f.panzoom_cb)
+        f.panzoom_cb = PanZoomCallbacks(f)
+    else
+        state = getproperty(guidata[f.canvas, :zoom_button], :active, Bool)
+        if state
+            unblock(f, f.panzoom_cb)
+        else
+            block(f, f.panzoom_cb)
+        end
+    end
+end
+
+function fullview_cb(f::Figure)
+    GtkUtilities.zoom_reset(f.canvas)
+end
+
 
 end # module
