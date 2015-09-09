@@ -1,8 +1,10 @@
 module ImmerseCompose
 
+import Base: start, next, done
+
 import Compose
-import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, ListNode, ComposeNode, ParentDrawContext, MatrixTransform
-import Compose: LinePrimitive, SVGClass
+import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, ListNode, ComposeNode, ParentDrawContext, MatrixTransform, Measure, MeasureNil
+import Compose: Line, Circle, SVGClass
 
 using Compat, Colors #, GtkUtilities
 
@@ -338,52 +340,101 @@ function invert_transform(t::MatrixTransform, x, y)
 end
 
 
-# Hit testing
+# Iterators/functions that report object specs in native (screen) units
+# These are useful for hit-testing
 
-# x, y are in device-coordinates, i.e., pixels
-function nearest(backend::Backend, coords, form::Form, x, y)
-    mindist = Inf
-    itemindex, entryindex = 0, 0
-    for (itemi,prim) in enumerate(form.primitives)
-        dist, entryi = nearest(backend, coords, prim, x, y)
-        if dist < mindist
-            mindist = dist
-            itemindex = itemi
-            entryindex = entryi
-        end
-    end
-    mindist, itemindex, entryindex
+abstract FormIterator
+
+immutable FormNativeIterator{F<:Form,B<:Backend,C} <: FormIterator
+    form::F
+    backend::B
+    coords::C
 end
 
-function nearest(backend::Backend, coords, prim::LinePrimitive, x, y)
+start(iter::FormNativeIterator) = 1  # some will specialize this
+done(iter::FormNativeIterator, state::Int) = state > length(iter.form.primitives)
+done(iter::FormNativeIterator, state::Tuple{Int,Int}) = state[1] > length(iter.form.primitives)
+
+native{F,B,C}(form::F, backend::B, coords::C) = FormNativeIterator{F,B,C}(form, backend, coords)
+
+@inline inc(state::Tuple{Int,Int}, len::Int) =
+    ifelse(state[2]+1 > len, (state[1]+1, 1), (state[1], state[2]+1))
+
+# Scalars and points
+function native(m::Measure, backend::Backend, coords)
+    transform, units, box = coords
+    z  = Compose.absolute_units(m, transform, units, box)
+    Compose.absolute_native_units(backend, z)
+end
+
+function native(pt::Point, backend::Backend, coords)
+    transform, units, box = coords
+    pabs = Compose.absolute_units(pt, transform, units, box)
+    nx = Compose.absolute_native_units(backend, pabs.x.abs)
+    ny = Compose.absolute_native_units(backend, pabs.y.abs)
+    (nx, ny)
+end
+
+# Iteration for specific Forms
+start{F<:Line}(::FormNativeIterator{F}) = (1,1)
+function next{F<:Line}(iter::FormNativeIterator{F}, state)
+    nxy = native(iter.form.primitives[state[1]].points[state[2]], iter.backend, iter.coords)
+    nxy, inc(state, length(iter.form.primitives[state[1]].points))
+end
+
+@inline function next{C<:Compose.CirclePrimitive}(iter::FormNativeIterator{Form{C}}, state)
+    prim = iter.form.primitives[state]
+    nx, ny = native(prim.center, iter.backend, iter.coords)
+    nr = native(prim.radius, iter.backend, iter.coords)
+    (nx, ny, nr), state+1
+end
+
+
+# Hit testing
+function nearest(backend::Backend, coords, form::Line, x, y)
+    transform, units, box = coords
+    mindist = Inf
+    mini = (0,0)
+    iter = native(form, backend, coords)
+    state = start(iter)
+    while !done(iter, state)
+        oldstate = state
+        nxy, state = next(iter, state)
+        nx, ny = nxy
+        dist = Float64((nx-x)^2 + (ny-y)^2)
+        if dist < mindist
+            mindist = dist
+            mini = oldstate
+        end
+    end
+    sqrt(mindist), mini
+end
+
+function nearest{C<:Compose.CirclePrimitive}(backend::Backend, coords, form::Form{C}, x, y)
     transform, units, box = coords
     mindist = Inf
     mini = 0
-    for (i,pt) in enumerate(prim.points)
-        pabs = Compose.absolute_units(pt, transform, units, box)
-        px = Compose.absolute_native_units(backend, pabs.x.abs)
-        py = Compose.absolute_native_units(backend, pabs.y.abs)
-        dist = Float64((px-x)^2 + (py-y)^2)
+    for (i,nxyr) in enumerate(native(form, backend, coords))
+        nx, ny, nr = nxyr
+        dist = Float64((nx-x)^2 + (ny-y)^2 - nr^2)
         if dist < mindist
-            mindist = dist
+            mindist = max(0.0, dist)
             mini = i
         end
     end
     sqrt(mindist), mini
 end
 
-function hitcenter(backend::Backend, coords, form::Form, itemindex, entryindex)
-    prim = form.primitives[itemindex]
-    hitcenter(backend, coords, prim, entryindex)
+
+function hitcenter(backend::Backend, coords, form::Line, index)
+    prim = form.primitives[index[1]]
+    pt = prim.points[index[2]]
+    native(pt, backend, coords)
 end
 
-function hitcenter(backend, coords, prim::LinePrimitive, entryindex)
-    transform, units, box = coords
-    pt = prim.points[entryindex]
-    pabs = Compose.absolute_units(pt, transform, units, box)
-    px = Compose.absolute_native_units(backend, pabs.x.abs)
-    py = Compose.absolute_native_units(backend, pabs.y.abs)
-    px, py
+function hitcenter{C<:Compose.CirclePrimitive}(backend, coords, form::Form{C}, index)
+    circ = form.primitives[index]
+    native(circ.center, backend, coords)
 end
 
 end # module

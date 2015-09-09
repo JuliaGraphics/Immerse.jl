@@ -14,7 +14,7 @@ function hit(fig::Figure, tag::Symbol, cb)
     if !haskey(_hit_data, fig)
         _hit_data[fig] = Dict{Symbol,Any}()
         c = fig.canvas
-        c.mouse.button1press = (widget, event) -> begin
+        c.mouse.button1press = @guarded (widget, event) -> begin
             if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
                 hitcb(fig, event.x, event.y)
             end
@@ -37,8 +37,8 @@ function hitcb(f, x, y)
     hitables = _hit_data[f]
     coords = GtkUtilities.guidata[c, :coords]
     mindist = Inf
+    minindex = 0   # not type-stable, unfortunately
     obj = Compose.empty_tag
-    itemindex, entryindex = 0, 0
     backend = render_backend(c)
     local objcb
     for (tag, data) in hitables
@@ -46,29 +46,28 @@ function hitcb(f, x, y)
         !state && continue
         # Find the object in the rendered figure
         form = find_object(f.cc, tag)
-        dist, iindex, eindex = nearest(backend, coords[tag], form, x, y)
+        dist, index = nearest(backend, coords[tag], form, x, y)
         if dist < mindist
             mindist = dist
             obj = tag
             objcb = cb
-            itemindex = iindex
-            entryindex = eindex
+            minindex = index
         end
     end
     if obj != Compose.empty_tag
-        objcb(mindist, itemindex, entryindex)
+        objcb(mindist, minindex)
     end
     nothing
 end
 
 # A good callback function for testing
-#    hit(fig, tag, (mindist, itemindex, entryindex) -> circle_center(fig, tag, itemindex, entryindex))
-function circle_center(f::Figure, tag, itemindex, entryindex; color=RGB{U8}(1,0,0))
+#    hit(fig, tag, (mindist, index) -> circle_center(fig, tag, index))
+function circle_center(f::Figure, tag, index; color=RGB{U8}(1,0,0))
     c = f.canvas
     coords = GtkUtilities.guidata[c, :coords][tag]
     form = find_object(f.cc, tag)
     backend = render_backend(c)
-    x, y = hitcenter(backend, coords, form, itemindex, entryindex)
+    x, y = hitcenter(backend, coords, form, index)
     ctx = getgc(c)
     set_source(ctx, color)
     set_line_width(ctx, 2)
