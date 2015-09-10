@@ -19,14 +19,11 @@ export
 const ppmm = 72/25.4   # pixels per mm FIXME? Get from backend? See dev2data.
 
 immutable PanZoomCallbacks
-    idzm::Tuple{UInt64,UInt64}
-    idzk::UInt64
-    idpm::UInt64
-    idpk::UInt64
+    idpzk::UInt64
 end
 
-PanZoomCallbacks() = PanZoomCallbacks((UInt64(0), UInt64(0)), 0, 0, 0)
-initialized(pzc::PanZoomCallbacks) = pzc.idzk != 0
+PanZoomCallbacks() = PanZoomCallbacks(0)
+initialized(pzc::PanZoomCallbacks) = pzc.idpzk != 0
 
 # Display code was copied & modified from Winston. The original
 # contributors to that code included Mike Nolta, Jameson Nash,
@@ -254,46 +251,36 @@ function GtkUtilities.panzoom(f::Figure)
     panzoom(f.canvas, viewx, viewy)
 end
 
-function GtkUtilities.add_pan_mouse(f::Figure; kwargs...)
+function GtkUtilities.panzoom_mouse(f::Figure; kwargs...)
     aes = _aes(f)
     xflip = aes.xtick[end] < aes.xtick[1]
     yflip = aes.ytick[end] > aes.ytick[1]
-    add_pan_mouse(f.canvas; fliphoriz=xflip, flipvert=yflip, kwargs...)
+    panzoom_mouse(f.canvas; xpanflip=xflip, ypanflip=yflip, user_to_data=(c,x,y)->dev2data(c,x,y), kwargs...)
 end
 
-GtkUtilities.add_zoom_mouse(f::Figure; kwargs...) = add_zoom_mouse(f.canvas; user_to_data=(c,x,y)->dev2data(c,x,y), kwargs...)
-
-function GtkUtilities.add_pan_key(f::Figure; kwargs...)
+function GtkUtilities.panzoom_key(f::Figure; kwargs...)
     aes = _aes(f)
     xflip = aes.xtick[end] < aes.xtick[1]
     yflip = aes.ytick[end] > aes.ytick[1]
-    add_pan_key(f.canvas; fliphoriz=xflip, flipvert=yflip, kwargs...)
+    panzoom_key(f.canvas; xpanflip=xflip, ypanflip=yflip, kwargs...)
 end
-
-GtkUtilities.add_zoom_key(f::Figure; kwargs...) = add_zoom_key(f.canvas; kwargs...)
 
 function block(f::Figure, pcz::PanZoomCallbacks)
-    signal_handler_block(f.canvas, pcz.idzm[1])
-    signal_handler_block(f.canvas, pcz.idzm[2])
-    signal_handler_block(f.canvas, pcz.idzk)
-    signal_handler_block(f.canvas, pcz.idpm)
-    signal_handler_block(f.canvas, pcz.idpk)
+    c = f.canvas
+    signal_handler_block(c, pcz.idpzk)
+    pop!((c.mouse,:scroll))
+    pop!((c.mouse,:button1press))
 end
 
 function unblock(f::Figure, pcz::PanZoomCallbacks)
-    signal_handler_unblock(f.canvas, pcz.idzm[1])
-    signal_handler_unblock(f.canvas, pcz.idzm[2])
-    signal_handler_unblock(f.canvas, pcz.idzk)
-    signal_handler_unblock(f.canvas, pcz.idpm)
-    signal_handler_unblock(f.canvas, pcz.idpk)
+    signal_handler_unblock(f.canvas, pcz.idpzk)
+    panzoom_mouse(f)
 end
 
 function PanZoomCallbacks(f::Figure)
     panzoom(f)
-    PanZoomCallbacks(add_zoom_mouse(f),
-                     add_zoom_key(f),
-                     add_pan_mouse(f),
-                     add_pan_key(f))
+    panzoom_mouse(f)
+    PanZoomCallbacks(panzoom_key(f))
 end
 
 function panzoom_cb(f::Figure)
