@@ -39,5 +39,6 @@ proj = run_lda(imgs, group)
 df = DataFrame(Any[vec(proj[1,:]),vec(proj[2,:]),group], [:comp1,:comp2,:group])
 p = plot(df, x=:comp1, y=:comp2, color=:group, Geom.point(tag=:lda));
 
+figure()
 hfig = display(p)
 hit(hfig, :lda, @guarded (mindist, i) -> if mindist < 2 showimg(imgs, i) end)

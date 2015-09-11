@@ -84,10 +84,10 @@ function Base.display(c::GtkCanvas, f::Figure)
     c.draw = let bad=false
         function (_)
             bad && return
-            viewx = get(guidata, (c, :viewx), nothing)
-            if viewx != nothing
-                viewy = guidata[c, :viewy]
-                set_limits!(f, viewx, viewy)
+            xview = get(guidata, (c, :xview), nothing)
+            if xview != nothing
+                yview = guidata[c, :yview]
+                set_limits!(f, xview, yview)
             end
             # Render
             backend = render_backend(c)
@@ -211,25 +211,25 @@ function render_finish(prep; kwargs...)
     return ctx
 end
 
-function set_ticks!(aes::Aesthetics, viewx, viewy)
-    xtick = Gadfly.optimize_ticks(viewx.min, viewx.max)[1]
-    ytick = Gadfly.optimize_ticks(viewy.min, viewy.max)[1]
+function set_ticks!(aes::Aesthetics, xview, yview)
+    xtick = Gadfly.optimize_ticks(xview.min, xview.max)[1]
+    ytick = Gadfly.optimize_ticks(yview.min, yview.max)[1]
     aes.xtick = aes.xgrid = xtick
     aes.ytick = aes.ygrid = ytick
     aes.xtickvisible = fill(true, length(xtick))
     aes.ytickvisible = fill(true, length(ytick))
     aes.xtickscale = ones(length(xtick))
     aes.ytickscale = ones(length(ytick))
-    aes.xviewmin, aes.xviewmax = viewx.min, viewx.max
-    aes.yviewmin, aes.yviewmax = viewy.min, viewy.max
+    aes.xviewmin, aes.xviewmax = xview.min, xview.max
+    aes.yviewmin, aes.yviewmax = yview.min, yview.max
     aes
 end
 
-function set_limits!(f::Figure, viewx, viewy)
+function set_limits!(f::Figure, xview, yview)
     aes = _aes(f)
-    if (aes.xviewmin, aes.xviewmax) != (viewx.min, viewx.max) ||
-       (aes.yviewmin, aes.yviewmax) != (viewy.min, viewy.max)
-        set_ticks!(aes, viewx, viewy)
+    if (aes.xviewmin, aes.xviewmax) != (xview.min, xview.max) ||
+       (aes.yviewmin, aes.yviewmax) != (yview.min, yview.max)
+        set_ticks!(aes, xview, yview)
         f.cc = render_finish(f.prepped; dynamic=false)
     end
     f
@@ -246,9 +246,9 @@ end
 GtkUtilities.panzoom(f::Figure, args...) = panzoom(f.canvas, args...)
 function GtkUtilities.panzoom(f::Figure)
     aes = _aes(f)
-    viewx = (aes.xviewmin, aes.xviewmax)
-    viewy = (aes.yviewmin, aes.yviewmax)
-    panzoom(f.canvas, viewx, viewy)
+    xview = (aes.xviewmin, aes.xviewmax)
+    yview = (aes.yviewmin, aes.yviewmax)
+    panzoom(f.canvas, xview, yview)
 end
 
 function GtkUtilities.panzoom_mouse(f::Figure; kwargs...)
