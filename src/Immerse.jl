@@ -1,24 +1,22 @@
 module Immerse
 
-import Gadfly, Compose, Gtk, GtkUtilities
-using Colors
+using GtkUtilities, Colors, Reexport
+@reexport using Gadfly
+import Gtk   # because both Gadfly and Gtk define draw
+import Compose
+
 if VERSION < v"0.4.0-dev"
     using Base.Graphics
 else
     using Graphics
 end
 
-import Gtk: GtkCanvas
-
 export
     closefig,
     closeall,
     figure,
     gcf,
-    handle,
-    hit,
-    getproperty,
-    setproperty!
+    hit
 
 # Stuff for Gadfly/Compose
 include("compose.jl")
@@ -28,6 +26,6 @@ using .DisplayGadfly
 
 # Generic (?)
 include("hit_test.jl")
-using .HitTest
+# using .HitTest
 
 end # module

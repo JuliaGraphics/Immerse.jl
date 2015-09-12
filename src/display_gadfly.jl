@@ -1,13 +1,13 @@
 module DisplayGadfly
 
-using Gtk, GtkUtilities, ..Graphics, Colors
+using GtkUtilities, ..Graphics, Colors
 
-import Gadfly, Compose
+import Gadfly, Compose, Gtk
 import Gadfly: Plot, Aesthetics
-import ..Immerse: find_tagged, bareobj, absolute_to_data
+import Gtk: GtkCanvas
+import ..Immerse: absolute_to_data
 
 export
-    Handle,
     Figure,
     closefig,
     closeall,
@@ -76,6 +76,7 @@ function Base.display(d::GadflyDisplay, p::Plot)
     end
     f.prepped = Gadfly.render_prepare(p)
     f.cc = render_finish(f.prepped; dynamic=false)
+    clear_hit(f)
     display(f.canvas, f)
     f
 end
@@ -107,6 +108,10 @@ end
 Base.display(::Base.REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(p)
 
 render_backend(c) = Compose.Image{Compose.CairoBackend}(Gtk.cairo_surface(c))
+
+const _hit_data = Dict{Figure,Dict{Symbol,Any}}()
+
+clear_hit(fig::Figure) = delete!(_hit_data, fig)
 
 function addfig(d::GadflyDisplay, i::Int, fig::Figure)
     @assert !haskey(d.figs,i)
@@ -142,16 +147,23 @@ function dropfig(d::GadflyDisplay, i::Int)
     d.current_fig = isempty(d.fig_order) ? 0 : d.fig_order[end]
 end
 
+"""
+`figure(;name="Figure \$n", width=400, height=400)` creates a new
+figure window for displaying plots.
+
+`figure(n)` raises the `n`th figure window and makes it the current
+default plotting window.
+"""
 function figure(;name::String="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)
     c = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
     f = Figure(c)
-    signal_connect(guidata[c,:zoom_button], "clicked") do widget
+    Gtk.signal_connect(guidata[c,:zoom_button], "clicked") do widget
         panzoom_cb(f)
     end
-    signal_connect(guidata[c,:fullview], "clicked") do widget
+    Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
         fullview_cb(f)
     end
     addfig(_display, i, f)
@@ -165,25 +177,34 @@ function figure(i::Integer)
     nothing
 end
 
+"`gcf()` returns the current figure"
 gcf() = _display.current_fig
+
+"""
+`closefig(n)` closes the `n`th figure window.
+
+`closefig()` closes the current figure window.
+"""
 closefig() = closefig(_display.current_fig)
 
-closefig(i::Integer) = gtkdestroy(getfig(_display,i).canvas)
+closefig(i::Integer) = (fig = getfig(_display,i); clear_hit(fig); gtkdestroy(getfig(_display,i).canvas))
+
+"`closeall()` closes all existing figure windows."
 closeall() = (map(closefig, keys(_display.figs)); nothing)
 
 function gtkwindow(name, w, h, closecb=nothing)
-    builder = @GtkBuilder(filename=joinpath(splitdir(@__FILE__)[1], "toolbar.glade"))
-    box = @GtkBox(:v)
-    tb = GAccessor.object(builder, "toolbar")
+    builder = Gtk.@GtkBuilder(filename=joinpath(splitdir(@__FILE__)[1], "toolbar.glade"))
+    box = Gtk.@GtkBox(:v)
+    tb = Gtk.GAccessor.object(builder, "toolbar")
     push!(box, tb)
-    zb = GAccessor.object(builder, "zoom_button")
-    fullview = GAccessor.object(builder, "fullview")
-    c = @GtkCanvas()
-    setproperty!(c, :expand, true)
+    zb = Gtk.GAccessor.object(builder, "zoom_button")
+    fullview = Gtk.GAccessor.object(builder, "fullview")
+    c = Gtk.@GtkCanvas()
+    Gtk.setproperty!(c, :expand, true)
     push!(box, c)
     guidata[c, :zoom_button] = zb
     guidata[c, :fullview] = fullview
-    win = @GtkWindow(box, name, w, h)
+    win = Gtk.@GtkWindow(box, name, w, h)
     if closecb !== nothing
         Gtk.on_signal_destroy(closecb, win)
     end
@@ -267,13 +288,13 @@ end
 
 function block(f::Figure, pcz::PanZoomCallbacks)
     c = f.canvas
-    signal_handler_block(c, pcz.idpzk)
+    Gtk.signal_handler_block(c, pcz.idpzk)
     pop!((c.mouse,:scroll))
     pop!((c.mouse,:button1press))
 end
 
 function unblock(f::Figure, pcz::PanZoomCallbacks)
-    signal_handler_unblock(f.canvas, pcz.idpzk)
+    Gtk.signal_handler_unblock(f.canvas, pcz.idpzk)
     panzoom_mouse(f)
 end
 
@@ -287,7 +308,7 @@ function panzoom_cb(f::Figure)
     if !initialized(f.panzoom_cb)
         f.panzoom_cb = PanZoomCallbacks(f)
     else
-        state = getproperty(guidata[f.canvas, :zoom_button], :active, Bool)
+        state = Gtk.getproperty(guidata[f.canvas, :zoom_button], :active, Bool)
         if state
             unblock(f, f.panzoom_cb)
         else
@@ -297,7 +318,9 @@ function panzoom_cb(f::Figure)
 end
 
 function fullview_cb(f::Figure)
-    GtkUtilities.zoom_reset(f.canvas)
+    if initialized(f.panzoom_cb)
+        GtkUtilities.zoom_reset(f.canvas)
+    end
 end
 
 
