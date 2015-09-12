@@ -11,7 +11,6 @@ export
     Figure,
     closefig,
     closeall,
-    getfig,
     figure,
     gcf,
     render_backend,
@@ -132,7 +131,12 @@ end
 function getfig(d::GadflyDisplay, i::Int)
     haskey(d.figs,i) ? d.figs[i] : error("no figure with index $i")
 end
-getfig(i::Int) = getfig(_display, i)
+"""
+`Figure(3)` gets the underlying Figure object associated with figure #3.
+This can be useful if you need to layer on extra drawing on top of what
+Gadfly produces.
+"""
+Figure(i::Int) = getfig(_display, i)
 
 function curfig(d::GadflyDisplay)
     d.figs[d.current_fig]

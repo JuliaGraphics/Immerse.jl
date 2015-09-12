@@ -14,6 +14,7 @@ else
 end
 
 export
+    Figure,
     closefig,
     closeall,
     figure,

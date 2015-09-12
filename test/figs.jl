@@ -14,5 +14,6 @@ fignew = display(plot(x=rand(5), y=rand(5), Geom.point))
 figure(fig)
 @test gcf() == fig
 display(plot(x=rand(5), y=rand(5), Geom.line))
+@test isa(Figure(fig), Figure)
 closefig(fignew)
 closeall()
