@@ -1,6 +1,7 @@
 using Immerse
 using Base.Test
 
-include("hittesting.jl")
+include("figs.jl")
 include("gadfly_panzoom.jl")
+include("hittesting.jl")
 include("faces.jl")

@@ -72,6 +72,9 @@ function hit(fig::Figure, tag::Symbol, state::Bool)
     nothing
 end
 
+hit(figno::Int, tag::Symbol, state::Bool) = hit(getfig(figno), tag, state)
+hit(figno::Int, tag::Symbol, state)       = hit(getfig(figno), tag, state)
+
 
 # callback function for hit-testing
 function hitcb(f, x, y)
@@ -119,5 +122,6 @@ function circle_center(f::Figure, tag, index; color=RGB{U8}(1,0,0))
     Gtk.reveal(c)
     nothing
 end
+circle_center(figno::Int, tag, index; color=RGB{U8}(1,0,0)) = circle_center(getfig(figno), tag, index; color=color)
 
 # end  # module

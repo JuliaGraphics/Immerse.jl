@@ -11,6 +11,7 @@ export
     Figure,
     closefig,
     closeall,
+    getfig,
     figure,
     gcf,
     render_backend,
@@ -78,7 +79,7 @@ function Base.display(d::GadflyDisplay, p::Plot)
     f.cc = render_finish(f.prepped; dynamic=false)
     clear_hit(f)
     display(f.canvas, f)
-    f
+    gcf()
 end
 
 function Base.display(c::GtkCanvas, f::Figure)
@@ -132,6 +133,7 @@ end
 function getfig(d::GadflyDisplay, i::Int)
     haskey(d.figs,i) ? d.figs[i] : error("no figure with index $i")
 end
+getfig(i::Int) = getfig(_display, i)
 
 function curfig(d::GadflyDisplay)
     d.figs[d.current_fig]
@@ -152,7 +154,7 @@ end
 figure window for displaying plots.
 
 `figure(n)` raises the `n`th figure window and makes it the current
-default plotting window.
+default plotting window, and returns the
 """
 function figure(;name::String="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
@@ -174,10 +176,10 @@ function figure(i::Integer)
     fig = curfig(_display)
     display(_display, fig)
     Gtk.present(Gtk.toplevel(fig.canvas))
-    nothing
+    fig
 end
 
-"`gcf()` returns the current figure"
+"`gcf()` returns the current figure number"
 gcf() = _display.current_fig
 
 """

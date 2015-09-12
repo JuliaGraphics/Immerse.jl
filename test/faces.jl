@@ -41,4 +41,6 @@ p = plot(df, x=:comp1, y=:comp2, color=:group, Geom.point(tag=:lda));
 
 figure()
 hfig = display(p)
-hit(hfig, :lda, @guarded (mindist, i) -> if mindist < 2 showimg(imgs, i) end)
+let hfig=hfig
+    hit(hfig, :lda, @guarded (tag, i, xy, dist) -> if dist < 2 showimg(imgs, i) end)
+end
