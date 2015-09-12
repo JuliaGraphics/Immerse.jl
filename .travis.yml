@@ -4,10 +4,15 @@ os:
   - linux
   - osx
 julia:
-  - release
-  - nightly
+  - 0.4
 notifications:
   email: false
+addons:
+    apt:
+        packages:
+            - xvfb
+            - xauth
+            - libgtk-3-0
 # uncomment the following lines to override the default test script
 #script:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi

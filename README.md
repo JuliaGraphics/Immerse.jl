@@ -2,7 +2,7 @@
 
 # Immerse
 
-[![Build Status](https://travis-ci.org/timholy/Immerse.jl.svg?branch=master)](https://travis-ci.org/timholy/Immerse.jl)
+[![Build Status](https://travis-ci.org/JuliaGraphics/Immerse.jl.svg?branch=master)](https://travis-ci.org/JuliaGraphics/Immerse.jl)
 
 Immerse is a wrapper that adds graphical interactivity to Julia plots.
 Currently, Immerse supports
