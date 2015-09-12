@@ -61,7 +61,6 @@ type GadflyDisplay <: Display
 end
 
 const _display = GadflyDisplay()
-pushdisplay(_display)
 
 Base.display(d::GadflyDisplay, f::Figure) = display(f.canvas, f)
 
@@ -325,5 +324,8 @@ function fullview_cb(f::Figure)
     end
 end
 
+function __init__()
+    pushdisplay(_display)
+end
 
 end # module

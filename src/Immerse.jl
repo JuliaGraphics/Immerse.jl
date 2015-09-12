@@ -1,3 +1,5 @@
+__precompile__()
+
 module Immerse
 
 using GtkUtilities, Colors, Reexport
