@@ -11,7 +11,6 @@ using Compat, Colors #, GtkUtilities
 export
     find_object,
     find_tagged,
-    handle,
     bareobj,
     getproperty,
     setproperty!,
@@ -261,8 +260,6 @@ has_tag(obj, tag) = false
 has_tag(obj)      = false
 
 
-handle(ctx::Context, tag) = find_parent(ctx, tag)
-
 function bareobj(ctx::Context)
     for c in ctx.children
         if isa(c, Form)
@@ -382,7 +379,7 @@ function next{F<:Line}(iter::FormNativeIterator{F}, state)
     nxy, inc(state, length(iter.form.primitives[state[1]].points))
 end
 
-@inline function next{C<:Compose.CirclePrimitive}(iter::FormNativeIterator{Form{C}}, state)
+@inline function next{F<:Circle}(iter::FormNativeIterator{F}, state)
     prim = iter.form.primitives[state]
     nx, ny = native(prim.center, iter.backend, iter.coords)
     nr = native(prim.radius, iter.backend, iter.coords)
@@ -391,25 +388,6 @@ end
 
 
 # Hit testing
-function nearest(backend::Backend, coords, form::Line, x, y)
-    transform, units, box = coords
-    mindist = Inf
-    mini = (0,0)
-    iter = native(form, backend, coords)
-    state = start(iter)
-    while !done(iter, state)
-        oldstate = state
-        nxy, state = next(iter, state)
-        nx, ny = nxy
-        dist = Float64((nx-x)^2 + (ny-y)^2)
-        if dist < mindist
-            mindist = dist
-            mini = oldstate
-        end
-    end
-    sqrt(mindist), mini
-end
-
 function nearest{C<:Compose.CirclePrimitive}(backend::Backend, coords, form::Form{C}, x, y)
     transform, units, box = coords
     mindist = Inf
@@ -425,10 +403,64 @@ function nearest{C<:Compose.CirclePrimitive}(backend::Backend, coords, form::For
     sqrt(mindist), mini
 end
 
+# Here we don't use the iterator because we need to break it out by segments
+# Return index is (iline, isegment, fraction) where 0.0 <= fraction <= 1.0
+# measures the fraction of the distance along the isegment-th segment
+# of the nearest point to the click.
+function nearest(backend::Backend, coords, form::Line, x, y)
+    transform, units, box = coords
+    mindist = Inf
+    mini = (0,0,0.0)
+    for iline = 1:length(form.primitives)
+        thisline = form.primitives[iline]
+        length(thisline.points) < 2 && continue
+        nxold, nyold = native(thisline.points[1], backend, coords)
+        skipping = false
+        for isegment = 1:length(thisline.points)-1
+            nx, ny = native(thisline.points[isegment+1], backend, coords)
+            len = Float64(sqrt((nx-nxold)^2 + (ny-nyold)^2)) # length of segment
+            if len == 0
+                # The two points defining the segment are the same,
+                # we'll report that it's either the incoming or outgoing
+                # segment unless there are no other segments
+                if !skipping || length(thisline.points)>isegment+1
+                    skipping = true
+                    continue
+                end
+                skipping = false
+                dist = Float64(sqrt((nx-x)^2 + (ny-y)^2))
+                if dist < mindist
+                    mindist = dist
+                    mini = (iline, isegment, 0.0)
+                end
+            else
+                skipping = false
+                # Compute the projection of (x,y) onto the segment
+                vx, vy = (nx-nxold)/len, (ny-nyold)/len  # unit vector tanget
+                l = (x-nxold)*vx + (y-nyold)*vy
+                frac = l/len
+                px, py = l*vx+nxold, l*vy+nyold
+                nxold, nyold = nx, ny
+                0.0 <= frac <= 1.0 || continue
+                # Compute the distance
+                dist = Float64(sqrt((px-x)^2 + (py-y)^2))
+                if dist < mindist
+                    mindist = dist
+                    mini = (iline, isegment, frac)
+                end
+            end
+
+        end
+    end
+    mindist, mini
+end
+
 
 function hitcenter(backend::Backend, coords, form::Line, index)
     prim = form.primitives[index[1]]
-    pt = prim.points[index[2]]
+    frac = index[3]
+    idx = index[2] + (frac >= 0.5 ? 1 : 0)
+    pt = prim.points[idx]
     native(pt, backend, coords)
 end
 
