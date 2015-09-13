@@ -19,7 +19,7 @@ using Immerse, Distributions
 X = rand(MultivariateNormal([0.0, 0.0], [1.0 0.5; 0.5 1.0]), 10000)
 plot(x=X[1,:], y=X[2,:], Geom.hexbin)
 ```
-However, rather than being displayed in a browser window, the display occurs in a Gtk window:
+However, rather than being displayed in a browser window, you'll see your figure in a Gtk window:
 
 ![window](images/zoom_hexbin_snapshot.png)
 
