@@ -11,12 +11,12 @@
 import .DisplayGadfly: _hit_data
 
 """
-`hit(fig, tag, cb)` turns on hit-testing for the plot element tagged with `tag` in figure `fig`. When the user clicks on the element, the callback function `cb` will be executed.
+`hit((fig,tag), cb)` turns on hit-testing for the plot element tagged with `tag` in figure `fig`. When the user clicks on the element, the callback function `cb` will be executed.
 
 The callback should have the form
 
 ```jl
-    function my_callback(xy, distance, index)
+    function my_callback(figtag, index, xy, distance)
         if distance < 2
             # We clicked close enough to the object to "count"
             # implement the action here
@@ -33,7 +33,7 @@ complex object.
 Here are a couple of examples:
 ```jl
     fig = display(plot(x=1:10,y=rand(10),Geom.point(tag=:dots)))
-    hit(fig, :dots, (tag, index, xy, dist) -> if dist < 1 println("You clicked on dot ", index) end)
+    hit((fig,:dots), (figtag, index, xy, dist) -> if dist < 1 println("You clicked on dot ", index) end)
 ```
 In this case, `index` will be an `Int`.
 
@@ -44,20 +44,22 @@ In this case, `index` will be an `Int`.
     df = DataFrame(Any[x,y,label], [:x,:y,:label])
     fig = display(plot(df, x=:x, y=:y, color=:label, Geom.line(tag=:lines)))
 
-    hit(fig, :lines, (tag, index, xy, dist) -> begin
+    hit((fig,:lines), (figtag, index, xy, dist) -> begin
         if dist < 2
             println("You clicked on line ", index[1], " in segment ", index[2], " at \$(round(Int,100*index[3]))% along the segment")
         end
     end)
 ```
 """
-function hit(fig::Figure, tag::Symbol, cb)
+function hit(figtag::Tuple{Int,Symbol}, cb)
+    figno, tag = figtag
+    fig = Figure(figno)
     if !haskey(_hit_data, fig)
         _hit_data[fig] = Dict{Symbol,Any}()
         c = fig.canvas
         c.mouse.button1press = Gtk.@guarded (widget, event) -> begin
             if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-                hitcb(fig, event.x, event.y)
+                hitcb(figno, fig, event.x, event.y)
             end
         end
     end
@@ -65,19 +67,16 @@ function hit(fig::Figure, tag::Symbol, cb)
     nothing
 end
 
-function hit(fig::Figure, tag::Symbol, state::Bool)
+function hit(figtag::Tuple{Int,Symbol}, state::Bool)
     dct = _hit_data[fig]
     olddata = dct[tag]
     dct[tag] = (state, olddata.cb)
     nothing
 end
 
-hit(figno::Int, tag::Symbol, state::Bool) = hit(Figure(figno), tag, state)
-hit(figno::Int, tag::Symbol, state)       = hit(Figure(figno), tag, state)
-
 
 # callback function for hit-testing
-function hitcb(f, x, y)
+function hitcb(figno, f, x, y)
     c = f.canvas
     hitables = get(_hit_data, f, nothing)
     hitables == nothing && return
@@ -101,14 +100,16 @@ function hitcb(f, x, y)
         end
     end
     if obj != Compose.empty_tag
-        objcb(obj, minindex, (x,y), mindist)
+        objcb((figno,obj), minindex, (x,y), mindist)
     end
     nothing
 end
 
 # A good callback function for testing
-#    hit(fig, tag, (mindist, index) -> circle_center(fig, tag, index))
-function circle_center(f::Figure, tag, index; color=RGB{U8}(1,0,0))
+#    hit(figtag, (figtag, index, xy, dist) -> circle_center(figtag, index))
+function circle_center(figtag::Tuple{Int,Symbol}, index; color=RGB{U8}(1,0,0))
+    figno, tag = figtag
+    f = Figure(figno)
     c = f.canvas
     coords = GtkUtilities.guidata[c, :coords][tag]
     form = find_object(f.cc, tag)
@@ -122,6 +123,5 @@ function circle_center(f::Figure, tag, index; color=RGB{U8}(1,0,0))
     Gtk.reveal(c)
     nothing
 end
-circle_center(figno::Int, tag, index; color=RGB{U8}(1,0,0)) = circle_center(Figure(figno), tag, index; color=color)
 
 # end  # module
