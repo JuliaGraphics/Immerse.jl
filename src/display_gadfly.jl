@@ -13,6 +13,7 @@ export
     closeall,
     figure,
     gcf,
+    scf,
     render_backend,
     set_limits!
 
@@ -66,6 +67,10 @@ Base.display(d::GadflyDisplay, f::Figure) = display(f.canvas, f)
 function Base.display(d::GadflyDisplay, p::Plot)
     isempty(d.figs) && figure()
     f = curfig(d)
+    # Clear data that might have applied to the previous plot
+    clear_hit(f)
+    clear_guidata(f.canvas)
+    # Supply a background, if not present
     if p.theme.background_color == nothing
         # FIXME: someday one will want to plot transparently.
         # Might be better for Gadfly to default to :auto, and then each
@@ -73,9 +78,11 @@ function Base.display(d::GadflyDisplay, p::Plot)
         # for users who want to turn off backgrounds manually).
         p.theme.background_color = colorant"white"
     end
+    # Do most of the time-consuming parts of plotting
     f.prepped = Gadfly.render_prepare(p)
+    # Render in the current state
     f.cc = render_finish(f.prepped; dynamic=false)
-    clear_hit(f)
+    # Render the figure
     display(f.canvas, f)
     gcf()
 end
@@ -182,8 +189,11 @@ function figure(i::Integer)
     fig
 end
 
-"`gcf()` returns the current figure number"
+"`gcf()` (\"get current figure\") returns the current figure number"
 gcf() = _display.current_fig
+
+"`scf()` (\"show current figure\") raises (makes visible) the current figure"
+scf() = figure(gcf())
 
 """
 `closefig(n)` closes the `n`th figure window.
@@ -220,6 +230,19 @@ function gtkwindow(name, w, h, closecb=nothing)
     end
     showall(win)
     c
+end
+
+function clear_guidata(c)
+    gd = guidata[c]
+    to_delete = Array(Symbol, 0)
+    for (k,v) in gd
+        if !(k in [:zoom_button, :fullview])
+            push!(to_delete, k)
+        end
+    end
+    for k in to_delete
+        delete!(gd, k)
+    end
 end
 
 function gtkdestroy(c::GtkCanvas)

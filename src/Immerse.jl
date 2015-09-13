@@ -19,6 +19,7 @@ export
     closeall,
     figure,
     gcf,
+    scf,
     hit
 
 # Stuff for Gadfly/Compose

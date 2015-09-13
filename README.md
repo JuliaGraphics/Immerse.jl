@@ -37,5 +37,6 @@ There are a few simple utilities for working with figure windows:
 plotting window.
 - `figure(3)` raises the corresponding window and makes it the default.
 - `gcf()` returns the index of the current default figure.
+- `scf()` shows the current figure (raising the window to the top).
 - `closefig(3)` destroys Figure 3, closing the window.
 - `closeall()` closes all open figure windows.
