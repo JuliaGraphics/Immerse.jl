@@ -1,5 +1,4 @@
-using Immerse
-using Gadfly, Gtk
+using Immerse, Gtk
 
 x = linspace(0,4pi,101)
 y = sin(x)
