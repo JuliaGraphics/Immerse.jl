@@ -40,3 +40,15 @@ plotting window.
 - `scf()` shows the current figure (raising the window to the top).
 - `closefig(3)` destroys Figure 3, closing the window.
 - `closeall()` closes all open figure windows.
+
+## Issues
+
+#### When I type `scf()`, nothing happens
+
+Your window manager may have "focus stealing prevention" enabled. For
+example, under KDE, go to the Kmenu->System Settings->Window
+behavior->Window behavior (pane)->Focus (tab) and set "Focus stealing
+prevent" to "None".  Alternatively, if you want to limit this change
+to julia, use the "Window rules" pane and add a new setting where
+"Window class (application)" is set to "Regular Expression" with value
+"^julia.*".
