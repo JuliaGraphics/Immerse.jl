@@ -1,5 +1,4 @@
-using Gadfly, Gtk.ShortNames, GtkUtilities, Colors, Graphics
-import Immerse
+using Immerse
 
 y = rand(10^4)
 p = plot(x=1:length(y),y=y,Geom.line)
