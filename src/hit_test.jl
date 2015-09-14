@@ -52,27 +52,30 @@ In this case, `index` will be an `Int`.
         end
     end)
 ```
+
+By default, `hit` uses mouse button 1; you can customize the action with `hit(figtag, cb, action)` where the default is `action = :button1press`.  The choices correspond to the fields in Gtk's `MouseHandler`.
+
+You can suspend hit-testing for an object with `hit((fig,:tag), false)`
+and re-enable it with `hit((fig,:tag), true)`.
 """
-function hit(figtag::Tuple{Int,Symbol}, cb)
+function hit(figtag::Tuple{Int,Symbol}, cb, action = :button1press)
     figno, tag = figtag
     fig = Figure(figno)
     if !haskey(_hit_data, fig)
         _hit_data[fig] = Dict{Symbol,Any}()
         c = fig.canvas
-        c.mouse.button1press = Gtk.@guarded (widget, event) -> begin
-            if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-                hitcb(figno, fig, event)
-            end
-        end
+        push!((c.mouse, action),
+              Gtk.@guarded (widget, event) -> hitcb(figno, fig, event))
     end
     _hit_data[fig][tag] = (true, cb)   # starts in "on" position
     nothing
 end
 
 function hit(figtag::Tuple{Int,Symbol}, state::Bool)
-    dct = _hit_data[fig]
+    figno, tag = figtag
+    dct = _hit_data[Figure(figno)]
     olddata = dct[tag]
-    dct[tag] = (state, olddata.cb)
+    dct[tag] = (state, olddata[2])
     nothing
 end
 
