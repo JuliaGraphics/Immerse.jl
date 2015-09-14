@@ -23,7 +23,29 @@ However, rather than being displayed in a browser window, you'll see your figure
 
 ![window](images/zoom_hexbin_snapshot.png)
 
-The toolbar at the top permits zooming and panning, using the defaults set by [GtkUtilities](https://github.com/timholy/GtkUtilities.jl).
+The toolbar at the top permits zooming and panning, using the defaults set by [GtkUtilities](https://github.com/timholy/GtkUtilities.jl).  The left button allows you to rubberband-select a zoom region, and use your mouse wheel or keyboard to pan or change the zoom level.  The 1:1 button restores the full view
+
+## Lasso selection
+
+The next button on the toolbar allows you to select a group of points for further analysis by drawing a "lasso" around them:
+
+![lasso](images/lasso_snapshot.png)
+
+By default, this pops up a dialog asking you which variable in `Main` you ant to save the selected indexes to:
+
+![lassodialog](images/lasso_dialog_snapshot.png)
+
+You can alternatively define a custom callback function; see the help for `lasso_initialize` by typing `?lasso_initialize` at the REPL.
+
+## Hit testing
+
+You can add extra interactivity by setting up callbacks that run whenever the user clicks on an object. A demonstration of this capability is exhibited in the `test/hittesting.jl` test script:
+
+![hittest](images/hittest_snapshot.png)
+
+Here the red circles are drawn around the dots that the user clicked on; see also the console output that showed the results of clicking on the line segments between the dots.
+
+Note that hit testing is disabled while the "zoom" button is active.
 
 ## Figure windows
 
@@ -40,6 +62,7 @@ plotting window.
 - `scf()` shows the current figure (raising the window to the top).
 - `closefig(3)` destroys Figure 3, closing the window.
 - `closeall()` closes all open figure windows.
+
 
 ## Issues
 
