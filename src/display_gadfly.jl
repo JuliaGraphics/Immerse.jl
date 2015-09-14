@@ -218,7 +218,7 @@ function gtkwindow(name, w, h, closecb=nothing)
     zb = Gtk.@GtkToggleToolButton("gtk-find")
     fullview = Gtk.@GtkToolButton("gtk-zoom-100")
     lasso_button = Gtk.@GtkToggleToolButton()
-    Gtk.GAccessor.icon_widget(lasso_button, lasso_icon[])
+    Gtk.GAccessor.icon_widget(lasso_button, Gtk.@GtkImage(joinpath(HOME, "images", "lasso_icon.png")))
     push!(tb, zb)
     push!(tb, fullview)
     push!(tb, Gtk.@GtkSeparatorToolItem())
@@ -362,12 +362,10 @@ function fullview_cb(f::Figure)
     end
 end
 
-const lasso_icon = Ref{Gtk.GtkImageLeaf}()
 const HOME = splitdir(splitdir(@__FILE__)[1])[1]
 
 function __init__()
     pushdisplay(_display)
-    lasso_icon[] = Gtk.@GtkImage(joinpath(HOME, "images", "lasso_icon.png"))
 end
 
 end # module
