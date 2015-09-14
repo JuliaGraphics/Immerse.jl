@@ -16,7 +16,7 @@ import .DisplayGadfly: _hit_data
 The callback should have the form
 
 ```jl
-    function my_callback(figtag, index, xy, distance)
+    function my_callback(figtag, index, event, distance)
         if distance < 2
             # We clicked close enough to the object to "count"
             # implement the action here
@@ -24,11 +24,13 @@ The callback should have the form
     end
 ```
 
-`xy = (x,y)` is the position of the click in screen-pixels. `distance`
-measures how much the user "missed" the object, and is also measured
-in screen-pixels. `index` represents the specific item clicked on.
-This might be a single `Int`, or for compound objects might be a more
-complex object.
+`figtag = (figno,tag)` identifies the figure and object, and `index`
+represents the specific item clicked on.  `index` might be a single `Int`
+(e.g., the 37th point in the plot), or for compound objects might be a
+more complex object.  `event` contains Gtk's information about the
+click event; this records the `x,y` position as well as any modifier
+keys.  `distance` measures how much the user "missed" the object, and
+is measured in screen-pixels.
 
 Here are a couple of examples:
 ```jl
@@ -59,7 +61,7 @@ function hit(figtag::Tuple{Int,Symbol}, cb)
         c = fig.canvas
         c.mouse.button1press = Gtk.@guarded (widget, event) -> begin
             if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-                hitcb(figno, fig, event.x, event.y)
+                hitcb(figno, fig, event)
             end
         end
     end
@@ -76,8 +78,9 @@ end
 
 
 # callback function for hit-testing
-function hitcb(figno, f, x, y)
+function hitcb(figno, f, event)
     c = f.canvas
+    x, y = event.x, event.y
     hitables = get(_hit_data, f, nothing)
     hitables == nothing && return
     coords = GtkUtilities.guidata[c, :coords]
@@ -100,13 +103,13 @@ function hitcb(figno, f, x, y)
         end
     end
     if obj != Compose.empty_tag
-        objcb((figno,obj), minindex, (x,y), mindist)
+        objcb((figno,obj), minindex, event, mindist)
     end
     nothing
 end
 
 # A good callback function for testing
-#    hit(figtag, (figtag, index, xy, dist) -> circle_center(figtag, index))
+#    hit(figtag, (figtag, index, event, dist) -> circle_center(figtag, index))
 function circle_center(figtag::Tuple{Int,Symbol}, index; color=RGB{U8}(1,0,0))
     figno, tag = figtag
     f = Figure(figno)
