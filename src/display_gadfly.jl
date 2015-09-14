@@ -5,6 +5,7 @@ using GtkUtilities, ..Graphics, Colors
 import Gadfly, Compose, Gtk
 import Gadfly: Plot, Aesthetics
 import Gtk: GtkCanvas
+import ..Immerse
 import ..Immerse: absolute_to_data
 
 export
@@ -178,6 +179,7 @@ function figure(;name::String="Figure $(nextfig(_display))",
     Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
         fullview_cb(f)
     end
+    Immerse.initialize_lasso(f)
     addfig(_display, i, f)
 end
 
@@ -217,14 +219,18 @@ function gtkwindow(name, w, h, closecb=nothing)
     # fullview = Gtk.GAccessor.object(builder, "fullview")
     zb = Gtk.@GtkToggleToolButton("gtk-find")
     fullview = Gtk.@GtkToolButton("gtk-zoom-100")
+    lasso_button = Gtk.@GtkToggleToolButton("gtk-stop")
     push!(tb, zb)
     push!(tb, fullview)
+    push!(tb, lasso_button)
     c = Gtk.@GtkCanvas()
     Gtk.setproperty!(c, :expand, true)
     push!(box, c)
     guidata[c, :zoom_button] = zb
     guidata[c, :fullview] = fullview
+    guidata[c, :lasso_button] = lasso_button
     win = Gtk.@GtkWindow(box, name, w, h)
+    guidata[win, :toolbar] = tb
     if closecb !== nothing
         Gtk.on_signal_destroy(closecb, win)
     end
@@ -236,7 +242,7 @@ function clear_guidata(c)
     gd = guidata[c]
     to_delete = Array(Symbol, 0)
     for (k,v) in gd
-        if !(k in [:zoom_button, :fullview])
+        if !(k in [:zoom_button, :fullview, :lasso_button])
             push!(to_delete, k)
         end
     end

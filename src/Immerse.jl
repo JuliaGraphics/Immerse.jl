@@ -20,7 +20,8 @@ export
     figure,
     gcf,
     scf,
-    hit
+    hit,
+    initialize_lasso
 
 # Stuff for Gadfly/Compose
 include("compose.jl")
@@ -31,5 +32,6 @@ using .DisplayGadfly
 # Generic (?)
 include("hit_test.jl")
 # using .HitTest
+include("select.jl")
 
 end # module

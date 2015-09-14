@@ -7,10 +7,13 @@ import Compose: Context, Table, Form, Backend, CairoBackend, Transform, Identity
 import Compose: Line, Circle, SVGClass
 
 using Compat, Colors #, GtkUtilities
+import Gtk
 
 export
     find_object,
     find_tagged,
+    find_panelforms,
+    find_inmask,
     bareobj,
     getproperty,
     setproperty!,
@@ -259,6 +262,35 @@ has_tag(form::Form)      = form.tag != Compose.empty_tag
 has_tag(obj, tag) = false
 has_tag(obj)      = false
 
+# Finding all Forms in a plotpanel
+# This is for working with untagged objects
+find_panelforms(cnt::Iterables) = find_panelforms!(Any[], cnt, false)
+
+function find_panelforms!(forms, cnt::Iterables, inpanel::Bool)
+    if !inpanel
+        for child in iterable(cnt)
+            if isa(child, SVGClass) && length(child.primitives) == 1 && child.primitives[1].value == "plotpanel"
+                inpanel = true
+                break
+            end
+        end
+        for child in iterable(cnt)
+            find_panelforms!(forms, child, inpanel)
+        end
+    else
+        for child in iterable(cnt)
+            if isa(child, Form)
+                push!(forms, child)
+            else
+                find_panelforms!(forms, child, true)
+            end
+        end
+    end
+    forms
+end
+
+find_panelforms!(forms, obj, inpanel::Bool) = forms
+
 
 function bareobj(ctx::Context)
     for c in ctx.children
@@ -280,21 +312,21 @@ sym2proptype(sym::Symbol) =
 proptype2sym(::Type{Stroke}) = :stroke
 proptype2sym(::Type{Fill})   = :fill
 
-getproperty(ctx::Context, sym::Symbol) = getproperty(ctx, sym2proptype(sym))
+Gtk.getproperty(ctx::Context, sym::Symbol) = getproperty(ctx, sym2proptype(sym))
 
-function getproperty{P<:Property}(ctx::Context, ::Type{P})
+function Gtk.getproperty{P<:Property}(ctx::Context, ::Type{P})
     for c in ctx.children
         isa(c, P) && return c
     end
     error(proptype2sym(P), " not found in ", string_compact(ctx))
 end
 
-setproperty!(ctx::Context, val, sym::Symbol) = setproperty!(ctx, val, sym2proptype(sym))
+Gtk.setproperty!(ctx::Context, val, sym::Symbol) = setproperty!(ctx, val, sym2proptype(sym))
 
-setproperty!{P<:Stroke}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
+Gtk.setproperty!{P<:Stroke}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
     setproperty!(ctx, Compose.stroke(val))
 
-function setproperty!{P<:Property}(ctx::Context, val::P)
+function Gtk.setproperty!{P<:Property}(ctx::Context, val::P)
     iter = ctx.children
     i = start(iter)
     ctx.children = _setproperty!(iter, val, i)
@@ -388,7 +420,7 @@ end
 
 
 # Hit testing
-function nearest{C<:Compose.CirclePrimitive}(backend::Backend, coords, form::Form{C}, x, y)
+function nearest(backend::Backend, coords, form::Circle, x, y)
     transform, units, box = coords
     mindist = Inf
     mini = 0
@@ -464,9 +496,37 @@ function hitcenter(backend::Backend, coords, form::Line, index)
     native(pt, backend, coords)
 end
 
-function hitcenter{C<:Compose.CirclePrimitive}(backend, coords, form::Form{C}, index)
+function hitcenter(backend, coords, form::Circle, index)
     circ = form.primitives[index]
     native(circ.center, backend, coords)
 end
+
+# selection by mask
+function find_inmask(backend::Backend, coords, form::Circle, mask)
+    index = Int[]
+    for (i, nxyr) in enumerate(native(form, backend, coords))
+        nx, ny, nr = nxyr
+        inx, iny = round(Int, nx), round(Int, ny)
+        1 <= inx <= size(mask,1) && 1 <= iny <= size(mask,2) || continue
+        if mask[inx,iny]
+            push!(index, i)
+        end
+    end
+    index
+end
+
+function find_inmask(backend::Backend, coords, form::Line, mask)
+    index = Tuple{Int,Int}[]
+    for (i, nxy) in enumerate(native(form, backend, coords))
+        nx, ny = nxy
+        inx, iny = round(Int, nx), round(Int, ny)
+        1 <= inx <= size(mask,1) && 1 <= iny <= size(mask,2) || continue
+        if mask[inx,iny]
+            push!(index, i)
+        end
+    end
+    index
+end
+
 
 end # module
