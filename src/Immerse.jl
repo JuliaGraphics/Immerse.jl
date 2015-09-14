@@ -21,7 +21,7 @@ export
     gcf,
     scf,
     hit,
-    initialize_lasso
+    lasso_initialize
 
 # Stuff for Gadfly/Compose
 include("compose.jl")

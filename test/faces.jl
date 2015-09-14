@@ -1,6 +1,17 @@
-using Images, Immerse, Gadfly, Gtk, DataFrames, ExtraMatrix
+using Immerse, Images, Gtk, DataFrames, ZipFile
+import ImageView
 
-function load_faces(parentdir="orl_faces")
+const testdir = splitdir(@__FILE__)[1]
+const facesdir = joinpath(testdir, "orl_faces")
+const orl_url = "http://www.cl.cam.ac.uk/Research/DTG/attarchive/pub/data/att_faces.zip"
+
+if !isdir(facesdir)
+    fn = download(orl_url)
+    mkpath(facesdir)
+    unzip(fn, facesdir)
+end
+
+function load_faces(parentdir=facesdir)
     imgs = Any[]
     group = Int[]
     for i = 1:40
@@ -34,11 +45,15 @@ function showimg(imgs, indx)
     end
 end
 
+function showimgs(imgs, indexes=1:length(imgs))
+    imgm = grayim(cat(3, imgs[indexes]...))
+    ImageView.view(imgm, pixelspacing=[1,1])
+end
+
+include("faces_utilities.jl")
+
 imgs, group = load_faces()
 proj = run_lda(imgs, group)
 df = DataFrame(Any[vec(proj[1,:]),vec(proj[2,:]),group], [:comp1,:comp2,:group])
-p = plot(df, x=:comp1, y=:comp2, color=:group, Geom.point(tag=:lda));
 
-figure()
-hfig = display(p)
-hit((hfig,:lda), @guarded (figtag, i, xy, dist) -> if dist < 2 showimg(imgs, i) end)
+include("faces_run.jl")

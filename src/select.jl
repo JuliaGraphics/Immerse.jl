@@ -72,15 +72,50 @@ function select_points(f::Figure, pathx, pathy)
     mask = path2mask(backend, pathx, pathy)
     # Determine which points are in the mask
     coords = guidata[c,:panelcoords][1]
-    inmask = Any[find_inmask(backend, coords, form, mask) for form in forms]
+    selections = Dict()
+    for form in forms
+        selections[form] = find_inmask(backend, coords, form, mask)
+    end
     # Run the callback
     cb = guidata[lasso_button, :callback]
-    cb(forms, inmask)
+    cb(f.figno, selections)
 end
 
-const lasso_default = (forms,inmask)->export_selection(inmask)
+const lasso_default = (figno, selections) -> export_selection(selections)
 
-function initialize_lasso(f::Figure, cb=lasso_default)
+"""
+
+`lasso_initialize(figno, cb)` sets the callback `cb` to run when the
+user has selected points with the lasso.  When you have only one
+"object" (Geom) in your plot, your callback can be of the form
+```
+    function my_simple_lasso_callback(figno, selections)
+        println("You selected points ", first(values(selections)))
+    end
+```
+For a `Geom.point` object, this would print a vector of integers
+corresponding to the selected points.
+
+More generally, the callback should have the syntax
+```
+    function my_lasso_callback(figno, selections)
+        for (form, indexes) in selections
+            if form.tag == :mydots
+                println("In figure \$figno, from :mydots you selected ", indexes)
+            end
+        end
+    end
+```
+`selections` is a `Dict` of `form=>indexes` pairs.  `form` is a
+`Compose.Form`, the raw objects rendered by Gadfly; you may especially
+want to query its `tag` to determine its identity (assuming you've
+assigned a tag).  `indexes` is a vector describing the items selected;
+for `Circle` forms, each element will be an `Int`, whereas for `Line`
+Forms (which can hold multiple lines, perhaps drawn in different colors)
+each element will be an `Tuple{Int,Int}` describing the line number
+and vertex number.
+"""
+function lasso_initialize(f::Figure, cb=lasso_default)
     c = f.canvas
     lasso_button = guidata[c, :lasso_button]
     guidata[lasso_button, :callback] = cb
@@ -88,10 +123,19 @@ function initialize_lasso(f::Figure, cb=lasso_default)
         lasso_select_cb(f)
     end
 end
-initialize_lasso(i::Int, cb=lasso_default) = initialize_lasso(Figure(i), cb)
+lasso_initialize(i::Int, cb=lasso_default) = lasso_initialize(Figure(i), cb)
 
-function export_selection(indexes)
-    all(isempty, indexes) && return nothing
+function export_selection(selections)
+    # Extract (tag,index) pairs. We don't use a Dict in case there are
+    # multiple untagged objects.
+    indexes = Array(Tuple{Symbol,Any}, length(selections))
+    i = 0
+    nonempty = false
+    for (form,indx) in selections
+        indexes[i+=1] = (form.tag,indx)
+        nonempty |= !isempty(indx)
+    end
+    nonempty || return nothing
     resp, varname = Gtk.input_dialog("Pick variable name in Main for exporting selection", "selection", (("Cancel",0), ("Store",1)))
     if resp == 0
         return nothing
@@ -102,17 +146,3 @@ function export_selection(indexes)
     end
     nothing
 end
-
-# function input_dialog{S<:String}(messages::AbstractVector{S}, entries_default::AbstractVector{S}, buttons=(("Cancel",0), ("Accept",1)), parent = Gtk.GtkNullContainer())
-#     length(messages) == length(entries_default) || error("Must have the same number of questions as answers
-#     widget = Gtk.@GtkMessageDialog(message, buttons, Gtk.GtkDialogFlags.DESTROY_WITH_PARENT, Gtk.GtkMessageType.INFO)
-#     box = content_area(widget)
-#     entry = Array(Gtk.GtkEntryLeaf, lengtH
-#     entry = Gtk.@Entry(;text=entry_default)
-#     push!(box, entry)
-#     showall(widget)
-#     resp = run(widget)
-#     entry_text = getproperty(entry, :text, ByteString)
-#     destroy(widget)
-#     return resp, entry_text
-# end

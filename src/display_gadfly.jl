@@ -38,6 +38,7 @@ type Figure
     prepped         # tuple, a pre-processed Plot to speed rendering
     cc::Compose.Context   # fully-rendered Plot (useful for hit-testing)
     panzoom_cb::PanZoomCallbacks
+    figno::Int
 
     function Figure(c::GtkCanvas, p::Plot)
         prepped = Gadfly.render_prepare(p)
@@ -128,6 +129,7 @@ function addfig(d::GadflyDisplay, i::Int, fig::Figure)
         d.next_fig += 1
     end
     d.current_fig = i
+    fig.figno = i
 end
 
 hasfig(d::GadflyDisplay, i::Int) = haskey(d.figs,i)
@@ -179,7 +181,7 @@ function figure(;name::String="Figure $(nextfig(_display))",
     Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
         fullview_cb(f)
     end
-    Immerse.initialize_lasso(f)
+    Immerse.lasso_initialize(f)
     addfig(_display, i, f)
 end
 
