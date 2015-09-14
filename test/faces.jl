@@ -5,6 +5,8 @@ const testdir = splitdir(@__FILE__)[1]
 const facesdir = joinpath(testdir, "orl_faces")
 const orl_url = "http://www.cl.cam.ac.uk/Research/DTG/attarchive/pub/data/att_faces.zip"
 
+include("faces_utilities.jl")
+
 if !isdir(facesdir)
     fn = download(orl_url)
     mkpath(facesdir)
@@ -49,8 +51,6 @@ function showimgs(imgs, indexes=1:length(imgs))
     imgm = grayim(cat(3, imgs[indexes]...))
     ImageView.view(imgm, pixelspacing=[1,1])
 end
-
-include("faces_utilities.jl")
 
 imgs, group = load_faces()
 proj = run_lda(imgs, group)
