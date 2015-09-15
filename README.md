@@ -6,9 +6,7 @@
 
 Immerse is a wrapper that adds graphical interactivity to Julia plots.
 Currently, Immerse supports
-[Gadfly](https://github.com/dcjones/Gadfly.jl).  Existing or
-in-progress features include pan/zoom, hit-testing, and multi-point
-selection.  Documentation is currently a work-in-progress.
+[Gadfly](https://github.com/dcjones/Gadfly.jl).
 
 # Usage
 
@@ -23,15 +21,17 @@ However, rather than being displayed in a browser window, you'll see your figure
 
 ![window](images/zoom_hexbin_snapshot.png)
 
-The toolbar at the top permits zooming and panning, using the defaults set by [GtkUtilities](https://github.com/timholy/GtkUtilities.jl).  The left button allows you to rubberband-select a zoom region, and use your mouse wheel or keyboard to pan or change the zoom level.  The 1:1 button restores the full view
+The toolbar at the top supports saving your figure to a file, zooming and panning, and lasso selection.
+
+Zooming and panning uses the defaults set by [GtkUtilities](https://github.com/timholy/GtkUtilities.jl).  The left mouse button allows you to rubberband-select a zoom region.  Use your mouse wheel or arrow-keys to pan or change the zoom level.  Double-click, or press the 1:1 button, to restore the full view.
 
 ## Lasso selection
 
-The next button on the toolbar allows you to select a group of points for further analysis by drawing a "lasso" around them:
+The right-most button on the toolbar allows you to select a group of points for further analysis by drawing a "lasso" around them:
 
 ![lasso](images/lasso_snapshot.png)
 
-By default, this pops up a dialog asking you which variable in `Main` you ant to save the selected indexes to:
+By default, this pops up a dialog asking you which variable in `Main` you want to save the selected indexes to:
 
 ![lassodialog](images/lasso_dialog_snapshot.png)
 
@@ -46,6 +46,39 @@ You can add extra interactivity by setting up callbacks that run whenever the us
 Here the red circles are drawn around the dots that the user clicked on; see also the console output that showed the results of clicking on the line segments between the dots.
 
 Note that hit testing is disabled while the "zoom" button is active.
+
+## Setting and getting properties
+
+Objects can be modified interactively after their creation:
+
+```jl
+julia> using Immerse, Colors
+
+julia> hfig = figure()
+1
+
+julia> x = linspace(0,4pi,101);
+
+julia> p = plot(x=x, y=sin(x), Geom.line(tag=:line))
+
+julia> setproperty!((hfig,:line), rand(1:5), :linewidth)
+3
+
+julia> setproperty!((hfig,:line), RGB(rand(),rand(),rand()), :stroke)
+RGB{Float64}(0.9563599683564541,0.20964995278692222,0.997388106654052)
+
+julia> setproperty!((hfig,:line), false, :visible)
+false
+
+julia> setproperty!((hfig,:line), true, :visible)
+true
+
+julia> getproperty((hfig,:line), :visible)
+1-element Array{Bool,1}:
+ true
+```
+Compose `Form` and `Property` objects apply to a vector of objects, which is why `getproperty` returns a vector.
+
 
 ## Figure windows
 
