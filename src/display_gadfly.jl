@@ -190,6 +190,24 @@ function dropfig(d::GadflyDisplay, i::Int)
     d.current_fig = isempty(d.fig_order) ? 0 : d.fig_order[end]
 end
 
+
+
+function createFigure(c::GtkCanvas)
+    f = Figure(c)
+    Gtk.signal_connect(guidata[c,:save_as], "clicked") do widget
+        save_as(f)
+    end
+    Gtk.signal_connect(guidata[c,:zoom_button], "clicked") do widget
+        panzoom_cb(f)
+    end
+    Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
+        fullview_cb(f)
+    end
+    Immerse.lasso_initialize(f)
+    f
+end
+
+
 """
 `figure(;name="Figure \$n", width=400, height=400)` creates a new
 figure window for displaying plots.
@@ -202,17 +220,7 @@ function figure(;name::String="Figure $(nextfig(_display))",
                  height::Integer=400)
     i = nextfig(_display)
     c = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
-    f = Figure(c)
-    Gtk.signal_connect(guidata[c,:save_as], "clicked") do widget
-        save_as(f)
-    end
-    Gtk.signal_connect(guidata[c,:zoom_button], "clicked") do widget
-        panzoom_cb(f)
-    end
-    Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
-        fullview_cb(f)
-    end
-    Immerse.lasso_initialize(f)
+    f = createFigure(c)
     addfig(_display, i, f)
     i
 end
@@ -223,6 +231,14 @@ function figure(i::Integer)
     display(_display, fig)
     Gtk.present(Gtk.toplevel(fig.canvas))
     fig
+end
+
+# create and initialize a Figure to use an existing GtkCanvas
+function figure(c::GtkCanvas)
+    i = nextfig(_display)
+    f = createFigure(c)
+    addfig(_display, i, f)
+    i
 end
 
 "`gcf()` (\"get current figure\") returns the current figure number"
@@ -243,7 +259,7 @@ closefig(i::Integer) = (fig = getfig(_display,i); clear_hit(fig); gtkdestroy(get
 "`closeall()` closes all existing figure windows."
 closeall() = (map(closefig, keys(_display.figs)); nothing)
 
-function gtkwindow(name, w, h, closecb=nothing)
+function createPlotGuiComponents()
     box = Gtk.@GtkBox(:v)
     tb = Gtk.@GtkToolbar()
     push!(box, tb)
@@ -265,6 +281,12 @@ function gtkwindow(name, w, h, closecb=nothing)
     guidata[c, :zoom_button] = zb
     guidata[c, :fullview] = fullview
     guidata[c, :lasso_button] = lasso_button
+    box, tb, c
+end
+
+
+function gtkwindow(name, w, h, closecb=nothing)
+    box, tb, c = createPlotGuiComponents()
     win = Gtk.@GtkWindow(box, name, w, h)
     guidata[win, :toolbar] = tb
     if closecb !== nothing
