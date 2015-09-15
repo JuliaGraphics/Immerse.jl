@@ -175,6 +175,9 @@ function figure(;name::String="Figure $(nextfig(_display))",
     i = nextfig(_display)
     c = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
     f = Figure(c)
+    Gtk.signal_connect(guidata[c,:save_as], "clicked") do widget
+        save_as(f)
+    end
     Gtk.signal_connect(guidata[c,:zoom_button], "clicked") do widget
         panzoom_cb(f)
     end
@@ -215,10 +218,13 @@ function gtkwindow(name, w, h, closecb=nothing)
     box = Gtk.@GtkBox(:v)
     tb = Gtk.@GtkToolbar()
     push!(box, tb)
-    zb = Gtk.@GtkToggleToolButton("gtk-find")
-    fullview = Gtk.@GtkToolButton("gtk-zoom-100")
+    save_as = Gtk.@GtkToolButton("gtk-save-as")     # document-save-as
+    zb = Gtk.@GtkToggleToolButton("gtk-find")       # edit-find
+    fullview = Gtk.@GtkToolButton("gtk-zoom-100")   # zoom-original
     lasso_button = Gtk.@GtkToggleToolButton()
     Gtk.GAccessor.icon_widget(lasso_button, Gtk.@GtkImage(joinpath(HOME, "images", "lasso_icon.png")))
+    push!(tb, save_as)
+    push!(tb, Gtk.@GtkSeparatorToolItem())
     push!(tb, zb)
     push!(tb, fullview)
     push!(tb, Gtk.@GtkSeparatorToolItem())
@@ -226,6 +232,7 @@ function gtkwindow(name, w, h, closecb=nothing)
     c = Gtk.@GtkCanvas()
     Gtk.setproperty!(c, :expand, true)
     push!(box, c)
+    guidata[c, :save_as] = save_as
     guidata[c, :zoom_button] = zb
     guidata[c, :fullview] = fullview
     guidata[c, :lasso_button] = lasso_button
@@ -242,7 +249,7 @@ function clear_guidata(c)
     gd = guidata[c]
     to_delete = Array(Symbol, 0)
     for (k,v) in gd
-        if !(k in [:zoom_button, :fullview, :lasso_button])
+        if !(k in [:save_as, :zoom_button, :fullview, :lasso_button])
             push!(to_delete, k)
         end
     end
@@ -341,6 +348,22 @@ function PanZoomCallbacks(f::Figure)
     panzoom(f)
     panzoom_mouse(f)
     PanZoomCallbacks(panzoom_key(f))
+end
+
+const file_backends = Dict(".svg"=>Compose.SVG, ".png"=>Compose.PNG, ".pdf"=>Compose.PDF, ".ps"=>Compose.PS)
+
+function save_as(f::Figure)
+    extensions = (".svg", ".png", ".pdf", ".ps")
+    selection = Gtk.save_dialog("Save figure as file", Gtk.toplevel(f.canvas), map(x->string("*",x), extensions))
+    isempty(selection) && return nothing
+    basename, ext = splitext(selection)
+    if !in(ext, extensions)
+        Gtk.error_dialog("Extension $ext not recognized: use .svg, .png, .pdf, or .ps")
+        return nothing
+    end
+    w, h = width(f.canvas), height(f.canvas)
+    Compose.draw(file_backends[ext](selection, w*Compose.px, h*Compose.px), f.cc)
+    nothing
 end
 
 function panzoom_cb(f::Figure)
