@@ -37,6 +37,8 @@ By default, this pops up a dialog asking you which variable in `Main` you want t
 
 You can alternatively define a custom callback function; see the help for `lasso_initialize` by typing `?lasso_initialize` at the REPL.
 
+Lasso selection is currently implemented only for `Geom.point` and `Geom.line`.  If you want to try this feature, the demonstration in `test/faces.jl` can be fun.
+
 ## Hit testing
 
 You can add extra interactivity by setting up callbacks that run whenever the user clicks on an object. A demonstration of this capability is exhibited in the `test/hittesting.jl` test script:
@@ -45,7 +47,7 @@ You can add extra interactivity by setting up callbacks that run whenever the us
 
 Here the red circles are drawn around the dots that the user clicked on; see also the console output that showed the results of clicking on the line segments between the dots.
 
-Note that hit testing is disabled while the "zoom" button is active.
+Note that hit testing is disabled while the "zoom" button is active.  Like lasso selection, this is currently implemented only for `Geom.point` and `Geom.line`.
 
 ## Setting and getting properties
 
