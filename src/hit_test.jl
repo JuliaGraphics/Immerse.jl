@@ -8,7 +8,7 @@
 #     hit,
 #     circle_center
 
-import .DisplayGadfly: _hit_data
+# import .DisplayGadfly: _hit_data
 
 """
 `hit((fig,tag), cb)` turns on hit-testing for the plot element tagged with `tag` in figure `fig`. When the user clicks on the element, the callback function `cb` will be executed.

@@ -2,9 +2,10 @@ __precompile__()
 
 module Immerse
 
-using GtkUtilities, Colors, Reexport
+using GtkUtilities, Colors, Reexport, Compat
 @reexport using Gadfly
 import Gtk   # because both Gadfly and Gtk define draw
+import Gtk: getproperty, setproperty!
 import Compose
 
 if VERSION < v"0.4.0-dev"
@@ -12,6 +13,7 @@ if VERSION < v"0.4.0-dev"
 else
     using Graphics
 end
+using Cairo
 
 export
     Figure,
@@ -20,14 +22,16 @@ export
     figure,
     gcf,
     scf,
+    getproperty,
+    setproperty!,
     hit,
     lasso_initialize
 
 # Stuff for Gadfly/Compose
 include("compose.jl")
-using .ImmerseCompose
+# using .ImmerseCompose
 include("display_gadfly.jl")
-using .DisplayGadfly
+# using .DisplayGadfly
 
 # Generic (?)
 include("hit_test.jl")
