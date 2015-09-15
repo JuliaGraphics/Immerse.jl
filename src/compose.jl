@@ -1,26 +1,26 @@
-module ImmerseCompose
+# module ImmerseCompose
 
 import Base: start, next, done
 
-import Compose
-import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, ListNode, ComposeNode, ParentDrawContext, MatrixTransform, Measure, MeasureNil
+# import Compose
+import Compose: Context, Table, Form, Backend, CairoBackend, Transform, IdentityTransform, Property, Container, ContainerPromise, Point, Image, AbsoluteBoundingBox, UnitBox, Stroke, Fill, LineWidth, Visible, ListNode, ComposeNode, ParentDrawContext, MatrixTransform, Measure, MeasureNil
 import Compose: Line, Circle, SVGClass
 
-using Compat, Colors #, GtkUtilities
-import Gtk
+# using Compat, Colors #, GtkUtilities
+# import Gtk
 
-export
-    find_object,
-    find_tagged,
-    find_panelforms,
-    find_inmask,
-    bareobj,
-    getproperty,
-    setproperty!,
-    nearest,
-    hitcenter,
-    absolute_to_data,
-    device_to_data
+# export
+#     find_object,
+#     find_tagged,
+#     find_panelforms,
+#     find_inmask,
+#     bareobj,
+#     getproperty,
+#     setproperty!,
+#     nearest,
+#     hitcenter,
+#     absolute_to_data,
+#     device_to_data
 
 typealias ContainersWithChildren Union(Context,Table)
 typealias Iterables Union(ContainersWithChildren, AbstractArray)
@@ -30,7 +30,7 @@ iterable(a::AbstractArray) = a
 
 # Override Compose's drawing to keep track of coordinates of tagged objects
 function Compose.draw(backend::Backend, root_canvas::Context)
-    coords, panelcoords = Main.Immerse.ImmerseCompose.drawpart(backend, root_canvas)
+    coords, panelcoords = Main.Immerse.drawpart(backend, root_canvas) #Main.Immerse.ImmerseCompose.drawpart(backend, root_canvas)
     Compose.finish(backend)
     coords, panelcoords
 end
@@ -305,39 +305,62 @@ bareobj(f::Form) = f
 # Modifying objects
 
 sym2proptype(sym::Symbol) =
-    sym == :stroke ? Stroke :
-    sym == :fill   ? Fill :
+    sym == :stroke    ? Stroke :
+    sym == :fill      ? Fill :
+    sym == :linewidth ? LineWidth :
+    sym == :visible   ? Visible :
     error(sym, " not a recognized property")
 
-proptype2sym(::Type{Stroke}) = :stroke
-proptype2sym(::Type{Fill})   = :fill
+proptype2sym(::Type{Stroke})    = :stroke
+proptype2sym(::Type{Fill})      = :fill
+proptype2sym(::Type{LineWidth}) = :linewidth
+proptype2sym(::Type{Visible})   = :visible
 
-Gtk.getproperty(ctx::Context, sym::Symbol) = getproperty(ctx, sym2proptype(sym))
+getproperty(ctx::Context, sym::Symbol) = getproperty(ctx, sym2proptype(sym))
 
-function Gtk.getproperty{P<:Property}(ctx::Context, ::Type{P})
+function getproperty{P<:Property}(ctx::Context, ::Type{P})
     for c in ctx.children
-        isa(c, P) && return c
+        isa(c, P) && return _getvalue(c)
     end
     error(proptype2sym(P), " not found in ", string_compact(ctx))
 end
 
-Gtk.setproperty!(ctx::Context, val, sym::Symbol) = setproperty!(ctx, val, sym2proptype(sym))
+_getvalue(p::Stroke)    = [prim.color for prim in p.primitives]
+_getvalue(p::Fill)      = [prim.color for prim in p.primitives]
+_getvalue(p::LineWidth) = [prim.value for prim in p.primitives]
+_getvalue(p::Visible)   = [prim.value for prim in p.primitives]
 
-Gtk.setproperty!{P<:Stroke}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
+setproperty!(ctx::Context, val, sym::Symbol) = setproperty!(ctx, val, sym2proptype(sym))
+
+setproperty!{P<:Stroke}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
     setproperty!(ctx, Compose.stroke(val))
 
-function Gtk.setproperty!{P<:Property}(ctx::Context, val::P)
+setproperty!{P<:Fill}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
+    setproperty!(ctx, Compose.fill(val))
+
+setproperty!{P<:LineWidth}(ctx::Context, val::Union(Measure,Number), ::Type{P}) =
+    setproperty!(ctx, Compose.linewidth(val))
+
+setproperty!{P<:Visible}(ctx::Context, val::Bool, ::Type{P}) =
+    setproperty!(ctx, Compose.visible(val))
+
+function setproperty!{P<:Property}(ctx::Context, val::P)
     iter = ctx.children
     i = start(iter)
     ctx.children = _setproperty!(iter, val, i)
     ctx
 end
 
+# Substitutes or adds a new property node in the list of children
 function _setproperty!{P}(iter, val::P, i)
     done(iter, i) && error("no ", proptype2sym(P), " property found")
     item, inew = next(iter, i)
     if isa(item, P)
+        # replace the node
         return ListNode{ComposeNode}(val, inew)
+    elseif isa(item, Form)
+        # add a node
+        return ListNode{ComposeNode}(val, i)
     end
     ListNode{ComposeNode}(item, _setproperty!(iter, val, inew))
 end
@@ -529,4 +552,4 @@ function find_inmask(backend::Backend, coords, form::Line, mask)
 end
 
 
-end # module
+# end # module

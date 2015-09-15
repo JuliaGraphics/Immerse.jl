@@ -1,22 +1,22 @@
-module DisplayGadfly
+# module DisplayGadfly
 
-using GtkUtilities, ..Graphics, Colors
+#using GtkUtilities, ..Graphics, Colors
 
-import Gadfly, Compose, Gtk
+# import Gadfly, Compose, Gtk
 import Gadfly: Plot, Aesthetics
 import Gtk: GtkCanvas
-import ..Immerse
-import ..Immerse: absolute_to_data
+# import ..Immerse
+# import ..Immerse: absolute_to_data, find_tagged, setproperty!
 
-export
-    Figure,
-    closefig,
-    closeall,
-    figure,
-    gcf,
-    scf,
-    render_backend,
-    set_limits!
+# export
+#     Figure,
+#     closefig,
+#     closeall,
+#     figure,
+#     gcf,
+#     scf,
+#     render_backend,
+#     set_limits!
 
 const ppmm = 72/25.4   # pixels per mm FIXME? Get from backend? See dev2data.
 
@@ -37,15 +37,16 @@ type Figure
     canvas::GtkCanvas
     prepped         # tuple, a pre-processed Plot to speed rendering
     cc::Compose.Context   # fully-rendered Plot (useful for hit-testing)
+    tweaks::Dict{Tuple{Symbol,Symbol},Any}  # post-rendering property changes
     panzoom_cb::PanZoomCallbacks
     figno::Int
 
     function Figure(c::GtkCanvas, p::Plot)
         prepped = Gadfly.render_prepare(p)
         cc = render_finish(prepped; dynamic=false)
-        new(c, prepped, cc, PanZoomCallbacks())
+        new(c, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
     end
-    Figure(c::GtkCanvas) = new(c, nothing, Compose.Context(), PanZoomCallbacks())
+    Figure(c::GtkCanvas) = new(c, nothing, Compose.Context(), copy(no_tweaks), PanZoomCallbacks())
 end
 
 _plot(prepped) = prepped[1]
@@ -83,7 +84,8 @@ function Base.display(d::GadflyDisplay, p::Plot)
     # Do most of the time-consuming parts of plotting
     f.prepped = Gadfly.render_prepare(p)
     # Render in the current state
-    f.cc = render_finish(f.prepped; dynamic=false)
+    cc = render_finish(f.prepped; dynamic=false)
+    f.cc = apply_tweaks!(cc, f.tweaks)
     # Render the figure
     display(f.canvas, f)
     gcf()
@@ -110,6 +112,32 @@ function Base.display(c::GtkCanvas, f::Figure)
         end
     end
     Gtk.draw(c)
+end
+
+const no_tweaks = Dict{Tuple{Symbol,Symbol},Any}()
+
+function apply_tweaks!(cc, tweaks)
+    tagged = find_tagged(cc)
+    for (k,v) in tweaks
+        ctx = tagged[k[1]]
+        setproperty!(ctx, v, k[2])
+    end
+    cc
+end
+
+function getproperty(figtag::Tuple{Int,Symbol}, prop::Symbol)
+    figno, tag = figtag
+    f = Figure(figno)
+    getproperty(find_parent(f.cc, tag), prop)
+end
+
+function setproperty!(figtag::Tuple{Int,Symbol}, val, prop::Symbol)
+    figno, tag = figtag
+    f = Figure(figno)
+    f.tweaks[(tag,prop)] = val
+    apply_tweaks!(f.cc, f.tweaks)
+    Gtk.draw(f.canvas)
+    val
 end
 
 # Co-opt the REPL display
@@ -186,6 +214,7 @@ function figure(;name::String="Figure $(nextfig(_display))",
     end
     Immerse.lasso_initialize(f)
     addfig(_display, i, f)
+    i
 end
 
 function figure(i::Integer)
@@ -297,7 +326,8 @@ function set_limits!(f::Figure, xview, yview)
     if (aes.xviewmin, aes.xviewmax) != (xview.min, xview.max) ||
        (aes.yviewmin, aes.yviewmax) != (yview.min, yview.max)
         set_ticks!(aes, xview, yview)
-        f.cc = render_finish(f.prepped; dynamic=false)
+        cc = render_finish(f.prepped; dynamic=false)
+        f.cc = apply_tweaks!(cc, f.tweaks)
     end
     f
 end
@@ -391,4 +421,4 @@ function __init__()
     pushdisplay(_display)
 end
 
-end # module
+# end # module

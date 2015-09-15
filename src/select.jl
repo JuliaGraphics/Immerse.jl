@@ -1,7 +1,7 @@
-import .ImmerseCompose: Iterables, iterable, native
-import .DisplayGadfly: Figure, render_backend
+# import .ImmerseCompose: Iterables, iterable, native
+# import .DisplayGadfly: Figure, render_backend
 import Compose: SVGClass, Form, Circle, Line, Backend
-using Gtk, Cairo, GtkUtilities
+# using Gtk, Cairo, GtkUtilities
 
 path2mask(backend::Backend, pathx, pathy) = path2mask(round(Int,width(backend.surface)), round(Int,height(backend.surface)), pathx, pathy)
 
@@ -31,19 +31,19 @@ const pathy = Float64[]
 
 function lasso_select_cb(f::Figure)
     c = f.canvas
-    push!((c.mouse,:button1press), @guarded (widget,event) -> begin
+    push!((c.mouse,:button1press), Gtk.@guarded (widget,event) -> begin
         empty!(pathx)
         empty!(pathy)
         push!(pathx, event.x)
         push!(pathy, event.y)
         push!((c.mouse,:button1motion), dragging)
     end)
-    push!((c.mouse,:button1release), @guarded (widget,event) -> begin
+    push!((c.mouse,:button1release), Gtk.@guarded (widget,event) -> begin
         select_points(f, pathx, pathy)
     end)
 end
 
-@guarded function dragging(widget,event)
+Gtk.@guarded function dragging(widget,event)
     ctx = getgc(widget)
     move_to(ctx, pathx[end], pathy[end])
     line_to(ctx, event.x, event.y)
