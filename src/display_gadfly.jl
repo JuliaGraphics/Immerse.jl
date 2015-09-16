@@ -192,8 +192,8 @@ end
 
 
 
-function createFigure(c::GtkCanvas)
-    f = Figure(c)
+function initialize_toolbar_callbacks(f::Figure)
+    c = f.canvas
     Gtk.signal_connect(guidata[c,:save_as], "clicked") do widget
         save_as(f)
     end
@@ -204,7 +204,6 @@ function createFigure(c::GtkCanvas)
         fullview_cb(f)
     end
     Immerse.lasso_initialize(f)
-    f
 end
 
 
@@ -220,15 +219,16 @@ function figure(;name::String="Figure $(nextfig(_display))",
                  height::Integer=400)
     i = nextfig(_display)
     c = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
-    f = createFigure(c)
+    f = Figure(c)
+    initialize_toolbar_callbacks(f)
     addfig(_display, i, f)
     i
 end
 
-function figure(i::Integer)
+function figure(i::Integer; displayfig::Bool = true)
     switchfig(_display, i)
     fig = curfig(_display)
-    display(_display, fig)
+    displayfig && display(_display, fig)
     Gtk.present(Gtk.toplevel(fig.canvas))
     fig
 end
@@ -236,7 +236,8 @@ end
 # create and initialize a Figure to use an existing GtkCanvas
 function figure(c::GtkCanvas)
     i = nextfig(_display)
-    f = createFigure(c)
+    f = Figure(c)
+    initialize_toolbar_callbacks(f)
     addfig(_display, i, f)
     i
 end
