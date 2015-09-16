@@ -141,7 +141,7 @@ function setproperty!(figtag::Tuple{Int,Symbol}, val, prop::Symbol)
 end
 
 # Co-opt the REPL display
-Base.display(::Base.REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(p)
+Base.display(::Base.REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(_display, p)
 
 render_backend(c) = Compose.Image{Compose.CairoBackend}(Gtk.cairo_surface(c))
 
