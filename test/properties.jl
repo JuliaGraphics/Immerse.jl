@@ -1,3 +1,5 @@
+using Immerse, Colors
+
 hfig = figure()
 x = linspace(0,4pi,101)
 display(plot(x=x, y=sin(x), Geom.line(tag=:line)))
