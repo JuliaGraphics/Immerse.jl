@@ -540,7 +540,10 @@ end
 
 function find_inmask(backend::Backend, coords, form::Line, mask)
     index = Tuple{Int,Int}[]
-    for (i, nxy) in enumerate(native(form, backend, coords))
+    iter = native(form, backend, coords)
+    i = start(iter)
+    while !done(iter, i)
+        nxy, i = next(iter, i)
         nx, ny = nxy
         inx, iny = round(Int, nx), round(Int, ny)
         1 <= inx <= size(mask,1) && 1 <= iny <= size(mask,2) || continue
