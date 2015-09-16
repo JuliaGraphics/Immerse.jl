@@ -51,7 +51,7 @@ Gtk.@guarded function dragging(widget,event)
     stroke(ctx)
     push!(pathx, event.x)
     push!(pathy, event.y)
-    reveal(widget, false)
+    Gtk.reveal(widget, false)
 end
 
 function select_points(f::Figure, pathx, pathy)
