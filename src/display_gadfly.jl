@@ -214,7 +214,7 @@ figure window for displaying plots.
 `figure(n)` raises the `n`th figure window and makes it the current
 default plotting window, and returns the
 """
-function figure(;name::String="Figure $(nextfig(_display))",
+function figure(;name::AbstractString="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)

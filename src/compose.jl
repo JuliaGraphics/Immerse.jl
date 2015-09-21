@@ -22,8 +22,8 @@ import Compose: Line, Circle, SVGClass
 #     absolute_to_data,
 #     device_to_data
 
-typealias ContainersWithChildren Union(Context,Table)
-typealias Iterables Union(ContainersWithChildren, AbstractArray)
+typealias ContainersWithChildren Union{Context,Table}
+typealias Iterables Union{ContainersWithChildren, AbstractArray}
 
 iterable(ctx::ContainersWithChildren) = ctx.children
 iterable(a::AbstractArray) = a
@@ -332,13 +332,13 @@ _getvalue(p::Visible)   = [prim.value for prim in p.primitives]
 
 setproperty!(ctx::Context, val, sym::Symbol) = setproperty!(ctx, val, sym2proptype(sym))
 
-setproperty!{P<:Stroke}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
+setproperty!{P<:Stroke}(ctx::Context, val::Union{Colorant,AbstractString,AbstractArray}, ::Type{P}) =
     setproperty!(ctx, Compose.stroke(val))
 
-setproperty!{P<:Fill}(ctx::Context, val::Union(Colorant,String,AbstractArray), ::Type{P}) =
+setproperty!{P<:Fill}(ctx::Context, val::Union{Colorant,AbstractString,AbstractArray}, ::Type{P}) =
     setproperty!(ctx, Compose.fill(val))
 
-setproperty!{P<:LineWidth}(ctx::Context, val::Union(Measure,Number), ::Type{P}) =
+setproperty!{P<:LineWidth}(ctx::Context, val::Union{Measure,Number}, ::Type{P}) =
     setproperty!(ctx, Compose.linewidth(val))
 
 setproperty!{P<:Visible}(ctx::Context, val::Bool, ::Type{P}) =
