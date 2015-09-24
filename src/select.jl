@@ -119,11 +119,15 @@ function lasso_initialize(f::Figure, cb=lasso_default)
     c = f.canvas
     lasso_button = guidata[c, :lasso_button]
     guidata[lasso_button, :callback] = cb
-    Gtk.signal_connect(lasso_button, "clicked") do widget
-        lasso_select_cb(f)
-    end
+    # Work around Gtk #161 & #185
+    # Gtk.signal_connect(lasso_button, "clicked") do widget
+    #     lasso_select_cb(f)
+    # end
+    Gtk.signal_connect(lasso_wrapper, lasso_button, "clicked", Void, (), false, f)
 end
 lasso_initialize(i::Int, cb=lasso_default) = lasso_initialize(Figure(i), cb)
+
+lasso_wrapper(::Ptr, f) = (lasso_select_cb(f); nothing)
 
 function export_selection(selections)
     # Extract (tag,index) pairs. We don't use a Dict in case there are

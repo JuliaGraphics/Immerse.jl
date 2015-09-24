@@ -194,18 +194,25 @@ end
 
 function initialize_toolbar_callbacks(f::Figure)
     c = f.canvas
-    Gtk.signal_connect(guidata[c,:save_as], "clicked") do widget
-        save_as(f)
-    end
-    Gtk.signal_connect(guidata[c,:zoom_button], "clicked") do widget
-        panzoom_cb(f)
-    end
-    Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
-        fullview_cb(f)
-    end
+    # Work around Gtk #161 & #185
+    # Gtk.signal_connect(guidata[c,:save_as], "clicked") do widget
+    #     save_as(f)
+    # end
+    # Gtk.signal_connect(guidata[c,:zoom_button], "clicked") do widget
+    #     panzoom_cb(f)
+    # end
+    # Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
+    #     fullview_cb(f)
+    # end
+    Gtk.signal_connect(save_as_wrapper, guidata[c,:save_as], "clicked", Void, (), false, f)
+    Gtk.signal_connect(panzoom_wrapper, guidata[c,:zoom_button], "clicked", Void, (), false, f)
+    Gtk.signal_connect(fullview_wrapper, guidata[c,:fullview], "clicked", Void, (), false, f)
     Immerse.lasso_initialize(f)
 end
 
+save_as_wrapper(::Ptr, f) = (save_as(f); nothing)
+panzoom_wrapper(::Ptr, f) = (panzoom_cb(f); nothing)
+fullview_wrapper(::Ptr, f) = (fullview_cb(f); nothing)
 
 """
 `figure(;name="Figure \$n", width=400, height=400)` creates a new
