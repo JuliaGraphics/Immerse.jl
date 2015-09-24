@@ -13,6 +13,7 @@ addons:
             - xvfb
             - xauth
             - libgtk-3-0
-script:
+before_install:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+script:
   - xvfb-run julia -e 'Pkg.clone(pwd()); Pkg.build("Immerse"); Pkg.test("Immerse"; coverage=true)'
