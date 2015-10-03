@@ -21,7 +21,7 @@ import Gtk: GtkCanvas
 const ppmm = 72/25.4   # pixels per mm FIXME? Get from backend? See dev2data.
 
 immutable PanZoomCallbacks
-    idpzk::UInt64
+    idpzk::Culong
 end
 
 PanZoomCallbacks() = PanZoomCallbacks(0)
