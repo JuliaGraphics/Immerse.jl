@@ -19,7 +19,7 @@ function load_faces(parentdir=facesdir)
     for i = 1:40
         childdir = joinpath(parentdir, string("s", i))
         for j = 1:10
-            img = imread(joinpath(childdir, string(j, ".pgm")))
+            img = load(joinpath(childdir, string(j, ".pgm")))
             push!(imgs, Images.data(img))
             push!(group, i)
         end
