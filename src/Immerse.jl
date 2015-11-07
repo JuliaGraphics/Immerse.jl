@@ -6,7 +6,7 @@ using GtkUtilities, Colors, Reexport, Compat
 @reexport using Gadfly
 import Gtk   # because both Gadfly and Gtk define draw
 import Gtk: getproperty, setproperty!
-import Compose
+import Compose, Measures
 
 if VERSION < v"0.4.0-dev"
     using Base.Graphics
