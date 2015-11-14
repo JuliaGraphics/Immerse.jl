@@ -1,6 +1,7 @@
-julia 0.4-
+julia 0.4
 Gadfly
-Compose
+Compose 0.3.19
+Measures
 Colors
 Gtk
 GtkUtilities
