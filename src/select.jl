@@ -3,7 +3,7 @@
 import Compose: SVGClass, Form, Circle, Line, Backend
 # using Gtk, Cairo, GtkUtilities
 
-path2mask(backend::Backend, pathx, pathy) = path2mask(round(Int,width(backend.surface)), round(Int,height(backend.surface)), pathx, pathy)
+path2mask(backend::Backend, pathx, pathy) = path2mask(round(Int,width(Compose.surface(backend))), round(Int,height(Compose.surface(backend))), pathx, pathy)
 
 function path2mask(w, h, pathx, pathy)
     length(pathx) == length(pathy) || error("pathx and pathy must have the same length")

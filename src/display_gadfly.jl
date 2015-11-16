@@ -3,7 +3,7 @@
 #using GtkUtilities, ..Graphics, Colors
 
 # import Gadfly, Compose, Gtk
-import Gadfly: Plot, Aesthetics
+import Gadfly: Plot, Aesthetics, Coord.Cartesian
 import Gtk: GtkCanvas
 # import ..Immerse
 # import ..Immerse: absolute_to_data, find_tagged, setproperty!
@@ -46,13 +46,22 @@ type Figure
         cc = render_finish(prepped; dynamic=false)
         new(c, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
     end
-    Figure(c::GtkCanvas) = new(c, nothing, Compose.Context(), copy(no_tweaks), PanZoomCallbacks())
+    Figure(c::GtkCanvas) = new(c, nothing, Compose.context(), copy(no_tweaks), PanZoomCallbacks())
 end
 
+# These extract arguments of the arg-tuple that gets passed to
+# Gadfly.render_prepared
 _plot(prepped) = prepped[1]
 _plot(fig::Figure) = _plot(fig.prepped)
+_coord(prepped) = prepped[2]
+_coord(fig::Figure) = _coord(fig.prepped)
 _aes(prepped) = prepped[3]
 _aes(fig::Figure) = _aes(fig.prepped)
+
+function setcoord!(fig::Figure, coord)
+    fig.prepped = (fig.prepped[1], coord, fig.prepped[3:end]...)
+    fig
+end
 
 type GadflyDisplay <: Display
     figs::Dict{Int,Figure}
@@ -103,7 +112,8 @@ function Base.display(c::GtkCanvas, f::Figure)
             # Render
             backend = render_backend(c)
             try
-                guidata[c,:coords], guidata[c,:panelcoords] = Compose.draw(backend, f.cc)
+                Compose.draw(backend, f.cc)
+                guidata[c,:coords], guidata[c,:panelcoords] = backend.coords, backend.panelcoords
             catch e
                 bad = true
                 rethrow(e)
@@ -143,7 +153,7 @@ end
 # Co-opt the REPL display
 Base.display(::Base.REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(_display, p)
 
-render_backend(c) = Compose.Image{Compose.CairoBackend}(Gtk.cairo_surface(c))
+render_backend(c) = Compose.ImmerseBackend(Gtk.cairo_surface(c))
 
 const _hit_data = Dict{Figure,Dict{Symbol,Any}}()
 
@@ -337,7 +347,7 @@ function render_finish(prep; kwargs...)
     return ctx
 end
 
-function set_ticks!(aes::Aesthetics, xview, yview)
+function set_ticks!(coord::Cartesian, aes::Aesthetics, xview, yview)
     xtick = Gadfly.optimize_ticks(xview.min, xview.max)[1]
     ytick = Gadfly.optimize_ticks(yview.min, yview.max)[1]
     aes.xtick = aes.xgrid = xtick
@@ -346,16 +356,25 @@ function set_ticks!(aes::Aesthetics, xview, yview)
     aes.ytickvisible = fill(true, length(ytick))
     aes.xtickscale = ones(length(xtick))
     aes.ytickscale = ones(length(ytick))
-    aes.xviewmin, aes.xviewmax = xview.min, xview.max
-    aes.yviewmin, aes.yviewmax = yview.min, yview.max
-    aes
+    coord = Cartesian(xmin=xview.min,
+                      xmax=xview.max,
+                      ymin=yview.min,
+                      ymax=yview.max,
+                      xflip=coord.xflip,
+                      yflip=coord.yflip,
+                      fixed=coord.fixed,
+                      aspect_ratio=coord.aspect_ratio,
+                      raster=coord.raster)
+    coord, aes
 end
 
 function set_limits!(f::Figure, xview, yview)
+    coord = _coord(f)
     aes = _aes(f)
-    if (aes.xviewmin, aes.xviewmax) != (xview.min, xview.max) ||
-       (aes.yviewmin, aes.yviewmax) != (yview.min, yview.max)
-        set_ticks!(aes, xview, yview)
+    if (coord.xmin, coord.xmax) != (xview.min, xview.max) ||
+       (coord.ymin, coord.ymax) != (yview.min, yview.max)
+        coord, aes = set_ticks!(coord, aes, xview, yview)
+        setcoord!(f, coord)
         cc = render_finish(f.prepped; dynamic=false)
         f.cc = apply_tweaks!(cc, f.tweaks)
     end
@@ -366,8 +385,8 @@ function dev2data(widget, x, y)
     xmm, ymm = x/ppmm, y/ppmm
     pc = guidata[widget,:panelcoords]
     @assert length(pc) == 1
-    transform, unit_box, parent_box = pc[1]
-    absolute_to_data(xmm, ymm, transform, unit_box, parent_box)
+    parent_box, unit_box, transform = pc[1]
+    absolute_to_data(xmm*mm, ymm*mm, transform, unit_box, parent_box)
 end
 
 GtkUtilities.panzoom(f::Figure, args...) = panzoom(f.canvas, args...)
