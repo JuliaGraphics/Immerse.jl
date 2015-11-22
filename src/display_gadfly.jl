@@ -82,6 +82,7 @@ function Base.display(d::GadflyDisplay, p::Plot)
     # Clear data that might have applied to the previous plot
     clear_hit(f)
     clear_guidata(f.canvas)
+    clear_guistate!(f)
     # Supply a background, if not present
     if p.theme.background_color == nothing
         # FIXME: someday one will want to plot transparently.
@@ -327,6 +328,15 @@ function clear_guidata(c)
     end
 end
 
+function clear_guistate!(f::Figure)
+    if initialized(f.panzoom_cb)
+        disconnect(f, f.panzoom_cb)
+    end
+    Gtk.setproperty!(guidata[f.canvas, :zoom_button], :active, false)
+    f.panzoom_cb = PanZoomCallbacks()
+end
+
+
 function gtkdestroy(c::GtkCanvas)
     Gtk.destroy(Gtk.toplevel(c))
     nothing
@@ -414,6 +424,13 @@ end
 function block(f::Figure, pcz::PanZoomCallbacks)
     c = f.canvas
     Gtk.signal_handler_block(c, pcz.idpzk)
+    pop!((c.mouse,:scroll))
+    pop!((c.mouse,:button1press))
+end
+
+function disconnect(f::Figure, pcz::PanZoomCallbacks)
+    c = f.canvas
+    Gtk.signal_handler_disconnect(c, pcz.idpzk)
     pop!((c.mouse,:scroll))
     pop!((c.mouse,:button1press))
 end
