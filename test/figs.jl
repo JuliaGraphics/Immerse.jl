@@ -17,3 +17,10 @@ display(plot(x=rand(5), y=rand(5), Geom.line))
 @test isa(Figure(fig), Figure)
 closefig(fignew)
 closeall()
+
+# Issue #56
+let hfig = figure()
+    Immerse.panzoom_cb(Figure(hfig))
+    Immerse.save_as(Figure(hfig))
+    closefig(hfig)
+end
