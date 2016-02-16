@@ -33,20 +33,28 @@ initialized(pzc::PanZoomCallbacks) = pzc.idpzk != 0
 
 # While figures are by default associated with Windows (each with a
 # single Canvas), you can have multiple figures per window.
-type Figure
+type Figure <: Gtk.GtkBox
+    handle::Ptr{Gtk.GObject}
     canvas::GtkCanvas
+    tb::Gtk.GtkToolbar
     prepped         # tuple, a pre-processed Plot to speed rendering
     cc::Compose.Context   # fully-rendered Plot (useful for hit-testing)
     tweaks::Dict{Tuple{Symbol,Symbol},Any}  # post-rendering property changes
     panzoom_cb::PanZoomCallbacks
     figno::Int
 
-    function Figure(c::GtkCanvas, p::Plot)
+    function Figure(p::Plot)
+        box, tb, c = createPlotGuiComponents()
         prepped = Gadfly.render_prepare(p)
         cc = render_finish(prepped; dynamic=false)
-        new(c, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
+        f = new(box.handle,c, tb, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
+        Gtk.gobject_move_ref(f, box)
     end
-    Figure(c::GtkCanvas) = new(c, nothing, Compose.context(), copy(no_tweaks), PanZoomCallbacks())
+    function Figure() 
+        box, tb, c = createPlotGuiComponents()
+        f = new(box.handle, c, tb, nothing, Compose.context(), copy(no_tweaks), PanZoomCallbacks())
+        Gtk.gobject_move_ref(f, box)
+    end 
 end
 
 Base.isempty(f::Figure) = f.prepped == nothing
@@ -208,8 +216,6 @@ function dropfig(d::GadflyDisplay, i::Int)
     d.current_fig = isempty(d.fig_order) ? 0 : d.fig_order[end]
 end
 
-
-
 function initialize_toolbar_callbacks(f::Figure)
     c = f.canvas
     # Work around Gtk #161 & #185
@@ -243,9 +249,12 @@ function figure(;name::AbstractString="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)
-    c = gtkwindow(name, width, height, (x...)->dropfig(_display,i))
-    f = Figure(c)
+    f = Figure()
+    Gtk.on_signal_destroy((x...)->dropfig(_display,i), f)
+    gtkwindow(name, width, height, f)
+    
     initialize_toolbar_callbacks(f)
+    
     addfig(_display, i, f)
     display(f.canvas, f)
     i
@@ -290,20 +299,25 @@ function createPlotGuiComponents()
     box = Gtk.@GtkBox(:v)
     tb = Gtk.@GtkToolbar()
     push!(box, tb)
+
     save_as = Gtk.@GtkToolButton("gtk-save-as")     # document-save-as
     zb = Gtk.@GtkToggleToolButton("gtk-find")       # edit-find
     fullview = Gtk.@GtkToolButton("gtk-zoom-100")   # zoom-original
     lasso_button = Gtk.@GtkToggleToolButton()
-    Gtk.GAccessor.icon_widget(lasso_button, Gtk.@GtkImage(joinpath(HOME, "images", "lasso_icon.png")))
+    Gtk.GAccessor.icon_widget(lasso_button, Gtk.@GtkImage(joinpath(Immerse.HOME, "images", "lasso_icon_16.png")))
     push!(tb, save_as)
     push!(tb, Gtk.@GtkSeparatorToolItem())
     push!(tb, zb)
     push!(tb, fullview)
     push!(tb, Gtk.@GtkSeparatorToolItem())
     push!(tb, lasso_button)
+    
+    Gtk.G_.icon_size(tb,1)#small icon size (16px)
+
     c = Gtk.@GtkCanvas()
     Gtk.setproperty!(c, :expand, true)
     push!(box, c)
+    
     guidata[c, :save_as] = save_as
     guidata[c, :zoom_button] = zb
     guidata[c, :fullview] = fullview
@@ -311,16 +325,10 @@ function createPlotGuiComponents()
     box, tb, c
 end
 
-
-function gtkwindow(name, w, h, closecb=nothing)
-    box, tb, c = createPlotGuiComponents()
-    win = Gtk.@GtkWindow(box, name, w, h)
-    guidata[win, :toolbar] = tb
-    if closecb !== nothing
-        Gtk.on_signal_destroy(closecb, win)
-    end
+function gtkwindow(name, w, h, fig)
+    win = Gtk.@GtkWindow(fig, name, w, h)
+    guidata[win, :toolbar] = fig.tb
     showall(win)
-    c
 end
 
 function clear_guidata(c)
