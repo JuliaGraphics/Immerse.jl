@@ -39,6 +39,15 @@ function lasso_select_cb(f::Figure)
         push!((c.mouse,:button1motion), dragging)
     end)
     push!((c.mouse,:button1release), Gtk.@guarded (widget,event) -> begin
+        # Restore the original mouse handlers
+        pop!((c.mouse, :button1press))
+        pop!((c.mouse, :button1motion))
+        pop!((c.mouse, :button1release))
+        # Toggle the lasso selection button
+        lasso_button = guidata[c, :lasso_button]
+        setproperty!(lasso_button, :active, false)
+        # Redraw the canvas
+        Gtk.draw(c)
         select_points(f, pathx, pathy)
     end)
 end
@@ -55,16 +64,9 @@ Gtk.@guarded function dragging(widget,event)
 end
 
 function select_points(f::Figure, pathx, pathy)
-    # Restore the original mouse handlers
     c = f.canvas
-    pop!((c.mouse, :button1press))
-    pop!((c.mouse, :button1motion))
-    pop!((c.mouse, :button1release))
-    # Toggle the lasso selection button
-    lasso_button = guidata[c, :lasso_button]
-    setproperty!(lasso_button, :active, false)
-    # Redraw the canvas
-    Gtk.draw(c)
+    # Check to see if the figure is empty (issue #56)
+    isempty(f) && return nothing
     # Find the forms
     forms = find_panelforms(f.cc)
     # Create the mask
@@ -77,6 +79,7 @@ function select_points(f::Figure, pathx, pathy)
         selections[form] = find_inmask(backend, coords, form, mask)
     end
     # Run the callback
+    lasso_button = guidata[c, :lasso_button]
     cb = guidata[lasso_button, :callback]
     cb(f.figno, selections)
 end
@@ -127,7 +130,13 @@ function lasso_initialize(f::Figure, cb=lasso_default)
 end
 lasso_initialize(i::Int, cb=lasso_default) = lasso_initialize(Figure(i), cb)
 
-lasso_wrapper(::Ptr, f) = (lasso_select_cb(f); nothing)
+Gtk.@guarded function lasso_wrapper(widgetptr::Ptr, f)
+    widget = convert(Gtk.GtkToggleToolButtonLeaf, widgetptr)
+    if Gtk.getproperty(widget, :active, Bool)
+        lasso_select_cb(f)
+    end
+    nothing
+end
 
 function export_selection(selections)
     # Extract (tag,index) pairs. We don't use a Dict in case there are

@@ -49,13 +49,15 @@ type Figure
     Figure(c::GtkCanvas) = new(c, nothing, Compose.context(), copy(no_tweaks), PanZoomCallbacks())
 end
 
+Base.isempty(f::Figure) = f.prepped == nothing
+
 # These extract arguments of the arg-tuple that gets passed to
 # Gadfly.render_prepared
-_plot(prepped) = prepped[1]
+_plot(prepped::Tuple) = prepped[1]
 _plot(fig::Figure) = _plot(fig.prepped)
-_coord(prepped) = prepped[2]
+_coord(prepped::Tuple) = prepped[2]
 _coord(fig::Figure) = _coord(fig.prepped)
-_aes(prepped) = prepped[3]
+_aes(prepped::Tuple) = prepped[3]
 _aes(fig::Figure) = _aes(fig.prepped)
 
 function setcoord!(fig::Figure, coord)
@@ -105,6 +107,10 @@ function Base.display(c::GtkCanvas, f::Figure)
     c.draw = let bad=false
         function (_)
             bad && return
+            if isempty(f)
+                fill!(c, RGB(1,1,1))
+                return
+            end
             xview = get(guidata, (c, :xview), nothing)
             if xview != nothing
                 yview = guidata[c, :yview]
@@ -120,6 +126,7 @@ function Base.display(c::GtkCanvas, f::Figure)
                 rethrow(e)
                 # println("Immerse error: ", e.msg)
             end
+            nothing
         end
     end
     Gtk.draw(c)
@@ -240,6 +247,7 @@ function figure(;name::AbstractString="Figure $(nextfig(_display))",
     f = Figure(c)
     initialize_toolbar_callbacks(f)
     addfig(_display, i, f)
+    display(f.canvas, f)
     i
 end
 
@@ -449,6 +457,7 @@ end
 const file_backends = Dict(".svg"=>Compose.SVG, ".png"=>Compose.PNG, ".pdf"=>Compose.PDF, ".ps"=>Compose.PS)
 
 function save_as(f::Figure)
+    isempty(f) && return nothing
     extensions = (".svg", ".png", ".pdf", ".ps")
     selection = Gtk.save_dialog("Save figure as file", Gtk.toplevel(f.canvas), map(x->string("*",x), extensions))
     isempty(selection) && return nothing
@@ -463,6 +472,10 @@ function save_as(f::Figure)
 end
 
 function panzoom_cb(f::Figure)
+    if isempty(f)
+        Gtk.setproperty!(guidata[f.canvas, :zoom_button], :active, false)
+        return nothing
+    end
     if !initialized(f.panzoom_cb)
         f.panzoom_cb = PanZoomCallbacks(f)
     else
