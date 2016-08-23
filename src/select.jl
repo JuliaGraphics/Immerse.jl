@@ -154,7 +154,7 @@ function export_selection(selections)
         return nothing
     end
     if !isempty(varname)
-        sym = symbol(varname)
+        sym = Symbol(varname)
         eval(Main, :($sym = $indexes))
     end
     nothing

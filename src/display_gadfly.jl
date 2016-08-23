@@ -245,12 +245,14 @@ figure window for displaying plots.
 `figure(n)` raises the `n`th figure window and makes it the current
 default plotting window, and returns the
 """
-function figure(;name::AbstractString="Figure $(nextfig(_display))",
+function figure(;name::String="Figure $(nextfig(_display))",
                  width::Integer=400,    # TODO: make configurable
                  height::Integer=400)
     i = nextfig(_display)
     f = Figure()
-    Gtk.on_signal_destroy((x...)->dropfig(_display,i), f)
+    
+    Gtk.signal_connect(on_figure_destroy, f, "destroy", Void, (), false, (i, _display))
+
     gtkwindow(name, width, height, f)
     
     initialize_toolbar_callbacks(f)
@@ -258,6 +260,12 @@ function figure(;name::AbstractString="Figure $(nextfig(_display))",
     addfig(_display, i, f)
     display(f.canvas, f)
     i
+end
+
+function on_figure_destroy(widgetptr::Ptr, user_data)
+    i, _display = user_data
+    dropfig(_display, i)
+    nothing
 end
 
 function figure(i::Integer; displayfig::Bool = true)
@@ -293,7 +301,7 @@ closefig() = closefig(_display.current_fig)
 closefig(i::Integer) = (fig = getfig(_display,i); clear_hit(fig); gtkdestroy(getfig(_display,i).canvas))
 
 "`closeall()` closes all existing figure windows."
-closeall() = (map(closefig, keys(_display.figs)); nothing)
+closeall() = (map(closefig, collect(keys(_display.figs))); nothing)
 
 function createPlotGuiComponents()
     box = Gtk.@GtkBox(:v)
