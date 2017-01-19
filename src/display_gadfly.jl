@@ -304,25 +304,25 @@ closefig(i::Integer) = (fig = getfig(_display,i); clear_hit(fig); gtkdestroy(get
 closeall() = (map(closefig, collect(keys(_display.figs))); nothing)
 
 function createPlotGuiComponents()
-    box = Gtk.@GtkBox(:v)
-    tb = Gtk.@GtkToolbar()
+    box = Gtk.GtkBox(:v)
+    tb = Gtk.GtkToolbar()
     push!(box, tb)
 
-    save_as = Gtk.@GtkToolButton("gtk-save-as")     # document-save-as
-    zb = Gtk.@GtkToggleToolButton("gtk-find")       # edit-find
-    fullview = Gtk.@GtkToolButton("gtk-zoom-100")   # zoom-original
-    lasso_button = Gtk.@GtkToggleToolButton()
-    Gtk.GAccessor.icon_widget(lasso_button, Gtk.@GtkImage(joinpath(Immerse.HOME, "images", "lasso_icon_16.png")))
+    save_as = Gtk.GtkToolButton("gtk-save-as")     # document-save-as
+    zb = Gtk.GtkToggleToolButton("gtk-find")       # edit-find
+    fullview = Gtk.GtkToolButton("gtk-zoom-100")   # zoom-original
+    lasso_button = Gtk.GtkToggleToolButton()
+    Gtk.GAccessor.icon_widget(lasso_button, Gtk.GtkImage(joinpath(Immerse.HOME, "images", "lasso_icon_16.png")))
     push!(tb, save_as)
-    push!(tb, Gtk.@GtkSeparatorToolItem())
+    push!(tb, Gtk.GtkSeparatorToolItem())
     push!(tb, zb)
     push!(tb, fullview)
-    push!(tb, Gtk.@GtkSeparatorToolItem())
+    push!(tb, Gtk.GtkSeparatorToolItem())
     push!(tb, lasso_button)
     
     Gtk.G_.icon_size(tb,1)#small icon size (16px)
 
-    c = Gtk.@GtkCanvas()
+    c = Gtk.GtkCanvas()
     Gtk.setproperty!(c, :expand, true)
     push!(box, c)
     
@@ -334,7 +334,7 @@ function createPlotGuiComponents()
 end
 
 function gtkwindow(name, w, h, fig)
-    win = Gtk.@GtkWindow(fig, name, w, h)
+    win = Gtk.GtkWindow(fig, name, w, h)
     guidata[win, :toolbar] = fig.tb
     showall(win)
 end
