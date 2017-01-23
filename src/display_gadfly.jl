@@ -34,27 +34,32 @@ initialized(pzc::PanZoomCallbacks) = pzc.idpzk != 0
 # While figures are by default associated with Windows (each with a
 # single Canvas), you can have multiple figures per window.
 type Figure <: Gtk.GtkBox
-    handle::Ptr{Gtk.GObject}
+    handle
     canvas::GtkCanvas
-    tb::Gtk.GtkToolbar
+    tb
     prepped         # tuple, a pre-processed Plot to speed rendering
     cc::Compose.Context   # fully-rendered Plot (useful for hit-testing)
     tweaks::Dict{Tuple{Symbol,Symbol},Any}  # post-rendering property changes
     panzoom_cb::PanZoomCallbacks
     figno::Int
 
+    function Figure(c::GtkCanvas, p::Plot)
+        prepped = Gadfly.render_prepare(p)
+        cc = render_finish(prepped; dynamic=false)
+        f = new(nothing, c, nothing, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
+    end
     function Figure(p::Plot)
         box, tb, c = createPlotGuiComponents()
         prepped = Gadfly.render_prepare(p)
         cc = render_finish(prepped; dynamic=false)
-        f = new(box.handle,c, tb, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
+        f = new(box.handle, c, tb, prepped, cc, copy(no_tweaks), PanZoomCallbacks())
         Gtk.gobject_move_ref(f, box)
     end
-    function Figure() 
+    function Figure()
         box, tb, c = createPlotGuiComponents()
         f = new(box.handle, c, tb, nothing, Compose.context(), copy(no_tweaks), PanZoomCallbacks())
         Gtk.gobject_move_ref(f, box)
-    end 
+    end
 end
 
 Base.isempty(f::Figure) = f.prepped == nothing
@@ -250,13 +255,13 @@ function figure(;name::String="Figure $(nextfig(_display))",
                  height::Integer=400)
     i = nextfig(_display)
     f = Figure()
-    
+
     Gtk.signal_connect(on_figure_destroy, f, "destroy", Void, (), false, (i, _display))
 
     gtkwindow(name, width, height, f)
-    
+
     initialize_toolbar_callbacks(f)
-    
+
     addfig(_display, i, f)
     display(f.canvas, f)
     i
@@ -319,13 +324,13 @@ function createPlotGuiComponents()
     push!(tb, fullview)
     push!(tb, Gtk.GtkSeparatorToolItem())
     push!(tb, lasso_button)
-    
+
     Gtk.G_.icon_size(tb,1)#small icon size (16px)
 
     c = Gtk.GtkCanvas()
     Gtk.setproperty!(c, :expand, true)
     push!(box, c)
-    
+
     guidata[c, :save_as] = save_as
     guidata[c, :zoom_button] = zb
     guidata[c, :fullview] = fullview
