@@ -117,6 +117,9 @@ for `Circle` forms, each element will be an `Int`, whereas for `Line`
 Forms (which can hold multiple lines, perhaps drawn in different colors)
 each element will be an `Tuple{Int,Int}` describing the line number
 and vertex number.
+
+To assign a tag to a Gadfly object, add the `tag` keyword argument to
+the geometry, e.g. `Geom.point(tag = :mydots)`.
 """
 function lasso_initialize(f::Figure, cb=lasso_default)
     c = f.canvas
