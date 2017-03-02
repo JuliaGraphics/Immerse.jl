@@ -3,6 +3,6 @@ Gadfly
 Compose 0.3.19
 Measures
 Colors
-Gtk
+Gtk 0.11
 GtkUtilities 0.0.8
 Reexport
