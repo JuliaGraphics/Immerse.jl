@@ -433,20 +433,32 @@ function GtkUtilities.panzoom(f::Figure)
     aes = _aes(f)
     xview = (aes.xviewmin, aes.xviewmax)
     yview = (aes.yviewmin, aes.yviewmax)
+    
+    if xview == (nothing, nothing)
+        xview = (minimum(aes.x),maximum(aes.x))
+    end
+    if yview == (nothing, nothing)
+        yview = (minimum(aes.y),maximum(aes.y))
+    end
+
     panzoom(f.canvas, xview, yview)
 end
 
 function GtkUtilities.panzoom_mouse(f::Figure; kwargs...)
     aes = _aes(f)
-    xflip = aes.xtick[end] < aes.xtick[1]
-    yflip = aes.ytick[end] > aes.ytick[1]
+    xtick = aes.xtick != nothing ? aes.xtick : aes.x
+    ytick = aes.ytick != nothing ? aes.ytick : aes.y
+    xflip = xtick[end] < xtick[1]
+    yflip = ytick[end] > ytick[1]
     panzoom_mouse(f.canvas; xpanflip=xflip, ypanflip=yflip, user_to_data=(c,x,y)->dev2data(c,x,y), kwargs...)
 end
 
 function GtkUtilities.panzoom_key(f::Figure; kwargs...)
     aes = _aes(f)
-    xflip = aes.xtick[end] < aes.xtick[1]
-    yflip = aes.ytick[end] > aes.ytick[1]
+    xtick = aes.xtick != nothing ? aes.xtick : aes.x
+    ytick = aes.ytick != nothing ? aes.ytick : aes.y
+    xflip = xtick[end] < xtick[1]
+    yflip = ytick[end] > ytick[1]
     panzoom_key(f.canvas; xpanflip=xflip, ypanflip=yflip, kwargs...)
 end
 
