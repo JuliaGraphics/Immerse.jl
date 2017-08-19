@@ -8,11 +8,7 @@ import Gtk   # because both Gadfly and Gtk define draw
 import Gtk: getproperty, setproperty!
 import Compose, Measures
 
-if VERSION < v"0.4.0-dev"
-    using Base.Graphics
-else
-    using Graphics
-end
+using Graphics
 using Cairo
 
 export
