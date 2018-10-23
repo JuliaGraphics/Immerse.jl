@@ -1,13 +1,14 @@
 using Immerse, Colors
 
 hfig = figure()
-x = linspace(0,4pi,101)
-display(plot(x=x, y=sin(x), Geom.line(tag=:line)))
-val = setproperty!((hfig,:line), rand(1:5), :linewidth)
-@test getproperty((hfig,:line), :linewidth) == [val*mm]
-val = setproperty!((hfig,:line), RGB(rand(),rand(),rand()), :stroke)
-@test getproperty((hfig,:line), :stroke) == [coloralpha(val)]
-setproperty!((hfig,:line), false, :visible)
+x = range(0, stop=4pi, length=101)
+display(plot(x=x, y=sin.(x), Geom.line(tag=:line)))
+
+val = Immerse.setproperty!((hfig,:line), rand(1:5), :linewidth)
+@test Immerse.getproperty((hfig,:line), :linewidth) == [val*mm]
+val = Immerse.setproperty!((hfig,:line), RGB(rand(),rand(),rand()), :stroke)
+@test Immerse.getproperty((hfig,:line), :stroke) == [coloralpha(val)]
+Immerse.setproperty!((hfig,:line), false, :visible)
 @test getproperty((hfig,:line), :visible) == [false]
-setproperty!((hfig,:line), true, :visible)
+Immerse.setproperty!((hfig,:line), true, :visible)
 @test getproperty((hfig,:line), :visible) == [true]

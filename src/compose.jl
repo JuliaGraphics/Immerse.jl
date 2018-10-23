@@ -27,12 +27,11 @@ using Compose: absolute_native_units
 #     hitcenter,
 #     absolute_to_data
 
-typealias ContainersWithChildren Table
-typealias Iterables Union{ContainersWithChildren, AbstractArray}
+const ContainersWithChildren = Table
+const Iterables = Union{ContainersWithChildren, AbstractArray}
 
 iterable(cnt::ContainersWithChildren) = cnt.children
 iterable(a::AbstractArray) = a
-
 
 # Testing utilities
 #
@@ -247,7 +246,7 @@ proptype2sym(::Type{Visible})   = :visible
 
 getproperty(ctx::Context, sym::Symbol) = getproperty(ctx, sym2proptype(sym))
 
-function getproperty{P<:Property}(ctx::Context, ::Type{P}, default=nothing)
+function getproperty(ctx::Context, ::Type{P}, default=nothing) where {P<:Property}
     for c in ctx.property_children
         isa(c, P) && return _getvalue(c)
     end
@@ -265,25 +264,25 @@ _getvalue(p::Visible)   = [prim.value for prim in p.primitives]
 
 setproperty!(ctx::Context, val, sym::Symbol) = setproperty!(ctx, val, sym2proptype(sym))
 
-setproperty!{P<:Stroke}(ctx::Context, val::Union{Colorant,AbstractString,AbstractArray}, ::Type{P}) =
+setproperty!(ctx::Context, val::Union{Colorant,AbstractString,AbstractArray}, ::Type{P}) where {P<:Stroke} =
     setproperty!(ctx, Compose.stroke(val))
 
-setproperty!{P<:Fill}(ctx::Context, val::Union{Colorant,AbstractString,AbstractArray}, ::Type{P}) =
+setproperty!(ctx::Context, val::Union{Colorant,AbstractString,AbstractArray}, ::Type{P}) where {P<:Fill} =
     setproperty!(ctx, Compose.fill(val))
 
-setproperty!{P<:LineWidth}(ctx::Context, val::Union{Measure,Number}, ::Type{P}) =
+setproperty!(ctx::Context, val::Union{Measure,Number}, ::Type{P}) where {P<:LineWidth} =
     setproperty!(ctx, Compose.linewidth(val))
 
-setproperty!{P<:Visible}(ctx::Context, val::Bool, ::Type{P}) =
+setproperty!(ctx::Context, val::Bool, ::Type{P}) where {P<:Visible} =
     setproperty!(ctx, Compose.visible(val))
 
-function setproperty!{P<:Property}(ctx::Context, val::P)
+function setproperty!(ctx::Context, val::P) where {P<:Property}
     ctx.property_children = _setproperty!(ctx.property_children, val)
     ctx
 end
 
 # Substitutes or adds a new property node in the list of children
-function _setproperty!{P}(iter, val::P, i)
+function _setproperty!(iter, val::P, i) where {P}
     if done(iter, i)
         # add a node
         return ListNode{Property}(val, i)
@@ -318,13 +317,12 @@ function invert_transform(t::MatrixTransform, x, y)
     xyt[1], xyt[2]
 end
 
-
 # Iterators/functions that report object specs in native (screen) units
 # These are useful for hit-testing
 
-abstract FormIterator
+abstract type FormIterator end
 
-immutable FormNativeIterator{F<:Form,B<:Backend,C} <: FormIterator
+struct FormNativeIterator{F<:Form,B<:Backend,C} <: FormIterator
     form::F
     backend::B
     coords::C
@@ -334,7 +332,7 @@ start(iter::FormNativeIterator) = 1  # some will specialize this
 done(iter::FormNativeIterator, state::Int) = state > length(iter.form.primitives)
 done(iter::FormNativeIterator, state::Tuple{Int,Int}) = state[1] > length(iter.form.primitives)
 
-native{F,B,C}(form::F, backend::B, coords::C) = FormNativeIterator{F,B,C}(form, backend, coords)
+native(form::F, backend::B, coords::C) where {F,B,C} = FormNativeIterator{F,B,C}(form, backend, coords)
 
 @inline inc(state::Tuple{Int,Int}, len::Int) =
     ifelse(state[2]+1 > len, (state[1]+1, 1), (state[1], state[2]+1))
@@ -351,13 +349,13 @@ function native(m::Tuple{Measure,Measure}, backend::Backend, coords)
 end
 
 # Iteration for specific Forms
-start{F<:Line}(::FormNativeIterator{F}) = (1,1)
-function next{F<:Line}(iter::FormNativeIterator{F}, state)
+start(::FormNativeIterator{F}) where {F<:Line} = (1,1)
+function next(iter::FormNativeIterator{F}, state) where {F<:Line}
     nxy = native(iter.form.primitives[state[1]].points[state[2]], iter.backend, iter.coords)
     nxy, inc(state, length(iter.form.primitives[state[1]].points))
 end
 
-@inline function next{F<:Circle}(iter::FormNativeIterator{F}, state)
+@inline function next(iter::FormNativeIterator{F}, state) where {F<:Circle}
     prim = iter.form.primitives[state]
     nx, ny = native(prim.center, iter.backend, iter.coords)
     nr = native(prim.radius, iter.backend, iter.coords)

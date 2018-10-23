@@ -1,5 +1,5 @@
 using Immerse, Colors
-using Base.Test
+using Test
 
 include("figs.jl")
 include("properties.jl")
