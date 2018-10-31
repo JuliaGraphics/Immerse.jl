@@ -9,6 +9,6 @@ val = Immerse.setproperty!((hfig,:line), rand(1:5), :linewidth)
 val = Immerse.setproperty!((hfig,:line), RGB(rand(),rand(),rand()), :stroke)
 @test Immerse.getproperty((hfig,:line), :stroke) == [coloralpha(val)]
 Immerse.setproperty!((hfig,:line), false, :visible)
-@test getproperty((hfig,:line), :visible) == [false]
+@test Immerse.getproperty((hfig,:line), :visible) == [false]
 Immerse.setproperty!((hfig,:line), true, :visible)
-@test getproperty((hfig,:line), :visible) == [true]
+@test Immerse.getproperty((hfig,:line), :visible) == [true]

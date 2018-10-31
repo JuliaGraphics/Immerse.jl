@@ -1,6 +1,6 @@
 # module ImmerseCompose
 
-import Base: start, next, done
+#import Base: start, next, done
 
 # import Compose
 using Measures: Vec, Measure, AbsoluteBox, resolve
@@ -8,9 +8,14 @@ using Compose: Backend
 using Compose: Container, Context, Table
 using Compose: Form, Line, Circle
 using Compose: Property, Stroke, Fill, LineWidth, Visible, SVGClass
-using Compose: ListNode
+using Compose: List, ListNode, ListNull
 using Compose: Transform, IdentityTransform, MatrixTransform, UnitBox
 using Compose: absolute_native_units
+
+start(l::List) = l
+next(::List, l::List) = (l.head, l.tail)
+done(::List, l::List) = typeof(l) <: ListNull
+cons(value, l::List{T}) where T = ListNode{T}(value, l)
 
 # using Compat, Colors #, GtkUtilities
 # import Gtk

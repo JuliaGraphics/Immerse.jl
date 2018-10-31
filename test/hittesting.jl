@@ -1,7 +1,7 @@
 using Immerse, Gtk
 
-x = linspace(0,4pi,101)
-y = sin(x)
+x = range(0,stop=4pi,length=101)
+y = sin.(x)
 
 figure()
 p = plot(x=x,y=y,Geom.point(tag=:dots),Geom.line(tag=:line))
