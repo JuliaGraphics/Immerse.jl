@@ -17,6 +17,7 @@ addons:
             - xvfb
             - xauth
             - libgtk-3-dev
+            - at-spi2-core
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("Immerse")'

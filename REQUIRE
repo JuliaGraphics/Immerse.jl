@@ -1,8 +1,9 @@
 julia 0.7
+DataFrames
 Gadfly
-Compose 0.3.19
+Compose 
 Measures
 Colors
-Gtk 0.11
+Gtk
 GtkUtilities
 Reexport
