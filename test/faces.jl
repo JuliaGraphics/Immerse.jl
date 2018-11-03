@@ -38,9 +38,9 @@ end
 
 function showimg(imgs, indx)
     img = imgs[indx]
-    c = @GtkCanvas()
-    f = @GtkAspectFrame(c, "", 0.5, 0.5, size(img,1)/size(img,2))
-    win = @GtkWindow(f, string("Face ", indx))
+    c = GtkCanvas()
+    f = GtkAspectFrame(c, "", 0.5, 0.5, size(img,1)/size(img,2))
+    win = GtkWindow(f, string("Face ", indx))
     showall(win)
     c.draw = function(widget)
         copy!(widget, imgs[indx])

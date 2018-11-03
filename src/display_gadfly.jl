@@ -4,7 +4,7 @@
 
 # import Gadfly, Compose, Gtk
 import Gadfly: Plot, Aesthetics, Coord.Cartesian
-import Gtk: GtkCanvas
+import Gtk: GtkCanvas, showall
 # import ..Immerse
 # import ..Immerse: absolute_to_data, find_tagged, setproperty!
 
@@ -217,7 +217,7 @@ function dropfig(d::GadflyDisplay, i::Int)
     haskey(d.figs,i) || return
     delete!(d.figs, i)
     splice!(d.fig_order, something(findfirst(isequal(i), d.fig_order), 0) )
-    
+
     d.next_fig = min(d.next_fig, i)
     d.current_fig = isempty(d.fig_order) ? 0 : d.fig_order[end]
 end
@@ -434,7 +434,7 @@ function GtkUtilities.panzoom(f::Figure)
     aes = _aes(f)
     xview = (aes.xviewmin, aes.xviewmax)
     yview = (aes.yviewmin, aes.yviewmax)
-    
+
     if xview == (nothing, nothing)
         xview = (minimum(aes.x),maximum(aes.x))
     end
