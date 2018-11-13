@@ -8,7 +8,7 @@ function unzip(inputfilename, outputpath=pwd())
             mkpath(outpath)
         else
             open(outpath, "w") do io
-                write(io, readall(f))
+                write(io, read(f))
             end
         end
     end
@@ -22,17 +22,17 @@ end
 #   Yu, Hua, and Jie Yang. "A direct LDA algorithm for
 #      high-dimensional data—with application to face recognition."
 #      Pattern recognition 34.10 (2001): 2067-2070.
-function lda{T}(X::AbstractMatrix{T}, group::Vector{Int})
+function lda(X::AbstractMatrix{T}, group::Vector{Int}) where {T}
     nd = size(X,1)
     dmeans, dX = lda_prepare(X, group)
     UB, SB, _ = svd(dmeans, thin=true)
     ikeep = SB .>= sqrt(eps(T))*maximum(SB)
     Y = UB[:,ikeep]
-    Z = scale(Y, 1./SB[ikeep])
+    Z = scale(Y, 1 ./ SB[ikeep])
     projW = Z'*dX
     UW, SW, _ = svd(projW, thin=true)
-    eigenval = 1./SW.^2
-    eigenvec = Z*scale(UW, 1./SW)
+    eigenval = 1 ./ SW.^2
+    eigenvec = Z*scale(UW, 1 ./ SW)
     # Normalize
     for j = 1:size(eigenvec,2)
         evn = zero(T)
@@ -48,7 +48,7 @@ function lda{T}(X::AbstractMatrix{T}, group::Vector{Int})
     return eigenvec[:,end:-1:1], eigenval[end:-1:1]
 end
 
-function lda_prepare{T}(X::AbstractMatrix{T}, group::Vector{Int})
+function lda_prepare(X::AbstractMatrix{T}, group::Vector{Int}) where {T}
     nd = size(X,1)
     npoints = size(X,2)
     xbar = zeros(T,nd)

@@ -4,7 +4,7 @@
 
 # import Gadfly, Compose, Gtk
 import Gadfly: Plot, Aesthetics, Coord.Cartesian
-import Gtk: GtkCanvas
+import Gtk: GtkCanvas, showall
 # import ..Immerse
 # import ..Immerse: absolute_to_data, find_tagged, setproperty!
 
@@ -20,7 +20,7 @@ import Gtk: GtkCanvas
 
 const ppmm = 72/25.4   # pixels per mm FIXME? Get from backend? See dev2data.
 
-immutable PanZoomCallbacks
+struct PanZoomCallbacks
     idpzk::Culong
 end
 
@@ -33,7 +33,7 @@ initialized(pzc::PanZoomCallbacks) = pzc.idpzk != 0
 
 # While figures are by default associated with Windows (each with a
 # single Canvas), you can have multiple figures per window.
-type Figure <: Gtk.GtkBox
+mutable struct Figure <: Gtk.GtkBox
     handle
     canvas::GtkCanvas
     tb
@@ -78,7 +78,7 @@ function setcoord!(fig::Figure, coord)
     fig
 end
 
-type GadflyDisplay <: Display
+mutable struct GadflyDisplay <: AbstractDisplay
     figs::Dict{Int,Figure}
     fig_order::Vector{Int}
     current_fig::Int
@@ -172,7 +172,7 @@ function setproperty!(figtag::Tuple{Int,Symbol}, val, prop::Symbol)
 end
 
 # Co-opt the REPL display
-Base.display(::Base.REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(_display, p)
+Base.display(::REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(_display, p)
 
 render_backend(c) = Compose.ImmerseBackend(Gtk.cairo_surface(c))
 
@@ -216,7 +216,8 @@ nextfig(d::GadflyDisplay) = d.next_fig
 function dropfig(d::GadflyDisplay, i::Int)
     haskey(d.figs,i) || return
     delete!(d.figs, i)
-    splice!(d.fig_order, findfirst(d.fig_order,i))
+    splice!(d.fig_order, something(findfirst(isequal(i), d.fig_order), 0) )
+
     d.next_fig = min(d.next_fig, i)
     d.current_fig = isempty(d.fig_order) ? 0 : d.fig_order[end]
 end
@@ -233,9 +234,9 @@ function initialize_toolbar_callbacks(f::Figure)
     # Gtk.signal_connect(guidata[c,:fullview], "clicked") do widget
     #     fullview_cb(f)
     # end
-    Gtk.signal_connect(save_as_wrapper, guidata[c,:save_as], "clicked", Void, (), false, f)
-    Gtk.signal_connect(panzoom_wrapper, guidata[c,:zoom_button], "clicked", Void, (), false, f)
-    Gtk.signal_connect(fullview_wrapper, guidata[c,:fullview], "clicked", Void, (), false, f)
+    Gtk.signal_connect(save_as_wrapper, guidata[c,:save_as], "clicked", Nothing, (), false, f)
+    Gtk.signal_connect(panzoom_wrapper, guidata[c,:zoom_button], "clicked", Nothing, (), false, f)
+    Gtk.signal_connect(fullview_wrapper, guidata[c,:fullview], "clicked", Nothing, (), false, f)
     Immerse.lasso_initialize(f)
 end
 
@@ -256,7 +257,7 @@ function figure(;name::String="Figure $(nextfig(_display))",
     i = nextfig(_display)
     f = Figure()
 
-    Gtk.signal_connect(on_figure_destroy, f, "destroy", Void, (), false, (i, _display))
+    Gtk.signal_connect(on_figure_destroy, f, "destroy", Nothing, (), false, (i, _display))
 
     gtkwindow(name, width, height, f)
 
@@ -328,7 +329,7 @@ function createPlotGuiComponents()
     Gtk.G_.icon_size(tb,1)#small icon size (16px)
 
     c = Gtk.GtkCanvas()
-    Gtk.setproperty!(c, :expand, true)
+    Gtk.set_gtk_property!(c, :expand, true)
     push!(box, c)
 
     guidata[c, :save_as] = save_as
@@ -346,7 +347,7 @@ end
 
 function clear_guidata(c)
     gd = guidata[c]
-    to_delete = Array(Symbol, 0)
+    to_delete = Symbol[]
     for (k,v) in gd
         if !(k in [:save_as, :zoom_button, :fullview, :lasso_button])
             push!(to_delete, k)
@@ -361,7 +362,7 @@ function clear_guistate!(f::Figure)
     if initialized(f.panzoom_cb)
         disconnect(f, f.panzoom_cb)
     end
-    Gtk.setproperty!(guidata[f.canvas, :zoom_button], :active, false)
+    Gtk.set_gtk_property!(guidata[f.canvas, :zoom_button], :active, false)
     f.panzoom_cb = PanZoomCallbacks()
 end
 
@@ -375,7 +376,7 @@ function render_finish(prep; kwargs...)
     p = _plot(prep)
     root_context = Gadfly.render_prepared(prep...; kwargs...)
 
-    ctx =  Compose.pad_inner(root_context, p.theme.plot_padding)
+    ctx =  Compose.pad_inner(root_context, p.theme.plot_padding...)
 
     if p.theme.background_color != nothing
         Compose.compose!(ctx, (Compose.context(order=-1000000),
@@ -433,7 +434,7 @@ function GtkUtilities.panzoom(f::Figure)
     aes = _aes(f)
     xview = (aes.xviewmin, aes.xviewmax)
     yview = (aes.yviewmin, aes.yviewmax)
-    
+
     if xview == (nothing, nothing)
         xview = (minimum(aes.x),maximum(aes.x))
     end
@@ -506,13 +507,13 @@ end
 
 function panzoom_cb(f::Figure)
     if isempty(f)
-        Gtk.setproperty!(guidata[f.canvas, :zoom_button], :active, false)
+        Gtk.set_gtk_property!(guidata[f.canvas, :zoom_button], :active, false)
         return nothing
     end
     if !initialized(f.panzoom_cb)
         f.panzoom_cb = PanZoomCallbacks(f)
     else
-        state = Gtk.getproperty(guidata[f.canvas, :zoom_button], :active, Bool)
+        state = Gtk.get_gtk_property(guidata[f.canvas, :zoom_button], :active, Bool)
         if state
             unblock(f, f.panzoom_cb)
         else

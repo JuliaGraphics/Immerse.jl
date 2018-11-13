@@ -1,5 +1,5 @@
 using Immerse
-using Base.Test
+using Test
 
 p = plot(x=rand(5), y=rand(5), Geom.line)
 fig = display(p)

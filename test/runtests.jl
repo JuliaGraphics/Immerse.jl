@@ -1,8 +1,8 @@
 using Immerse, Colors
-using Base.Test
+using Test
 
 include("figs.jl")
 include("properties.jl")
 include("gadfly_panzoom.jl")
 include("hittesting.jl")
-include("faces.jl")
+#include("faces.jl")

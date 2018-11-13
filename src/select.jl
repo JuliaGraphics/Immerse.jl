@@ -11,7 +11,7 @@ function path2mask(w, h, pathx, pathy)
         return falses(w, h)
     end
     # Use Cairo to make the mask
-    data = Array(UInt32, w, h)
+    data = Array{UInt32}(undef, w, h)
     surf = Cairo.CairoImageSurface(data, Cairo.FORMAT_RGB24, flipxy=false)
     ctx = CairoContext(surf)
     set_source_rgb(ctx, 0, 0, 0)
@@ -129,13 +129,13 @@ function lasso_initialize(f::Figure, cb=lasso_default)
     # Gtk.signal_connect(lasso_button, "clicked") do widget
     #     lasso_select_cb(f)
     # end
-    Gtk.signal_connect(lasso_wrapper, lasso_button, "clicked", Void, (), false, f)
+    #Gtk.signal_connect(lasso_wrapper, lasso_button, "clicked", Void, (), false, f)
 end
 lasso_initialize(i::Int, cb=lasso_default) = lasso_initialize(Figure(i), cb)
 
 Gtk.@guarded function lasso_wrapper(widgetptr::Ptr, f)
     widget = convert(Gtk.GtkToggleToolButtonLeaf, widgetptr)
-    if Gtk.getproperty(widget, :active, Bool)
+    if Gtk.get_gtk_property(widget, :active, Bool)
         lasso_select_cb(f)
     end
     nothing
@@ -144,7 +144,7 @@ end
 function export_selection(selections)
     # Extract (tag,index) pairs. We don't use a Dict in case there are
     # multiple untagged objects.
-    indexes = Array(Tuple{Symbol,Any}, length(selections))
+    indexes = Array{Tuple{Symbol,Any}}(undef,length(selections))
     i = 0
     nonempty = false
     for (form,indx) in selections
