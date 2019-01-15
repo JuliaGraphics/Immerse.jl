@@ -11,11 +11,7 @@ using Cairo
 @eval Compose begin import Cairo end
 Compose.link_cairo()
 
-if VERSION < v"0.4.0-dev"
-    using Base.Graphics
-else
-    using Graphics
-end
+using Graphics
 
 export
     Figure,
