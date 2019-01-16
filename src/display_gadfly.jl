@@ -531,6 +531,11 @@ end
 const HOME = splitdir(splitdir(@__FILE__)[1])[1]
 
 function __init__()
+    #set white background for default Theme
+    t = Theme()
+    t.panel_fill = colorant"white"
+    Gadfly.push_theme(t)
+    
     pushdisplay(_display)
 end
 
