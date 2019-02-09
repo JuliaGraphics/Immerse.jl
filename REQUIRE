@@ -3,6 +3,7 @@ DataFrames
 Gadfly
 Compose 
 Measures
+Compat
 Colors
 Gtk
 GtkUtilities
