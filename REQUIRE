@@ -1,9 +1,10 @@
 julia 0.7
 DataFrames
 Gadfly
-Compose 
+Compose
 Measures
 Compat
+Graphics
 Colors
 Gtk
 GtkUtilities

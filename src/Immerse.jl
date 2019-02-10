@@ -2,7 +2,7 @@ __precompile__()
 
 module Immerse
 
-using GtkUtilities, Colors, Reexport, Compat, REPL
+using GtkUtilities, Colors, Reexport, Compat, REPL, Graphics
 @reexport using Gadfly
 import Gtk   # because both Gadfly and Gtk define draw
 import Compose, Measures
@@ -10,12 +10,6 @@ using Cairo
 
 @eval Compose begin import Cairo end
 Compose.link_cairo()
-
-if VERSION < v"0.4.0-dev"
-    using Base.Graphics
-else
-    using Graphics
-end
 
 export
     Figure,

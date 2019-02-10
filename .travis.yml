@@ -2,8 +2,8 @@ language: julia
 sudo: required
 os:
   - linux
+  - osx
 julia:
-  - 0.7
   - 1.0
   - nightly
 matrix:
