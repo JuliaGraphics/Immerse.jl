@@ -5,6 +5,7 @@ Compose
 Measures
 Compat
 Graphics
+Cairo
 Colors
 Gtk
 GtkUtilities
