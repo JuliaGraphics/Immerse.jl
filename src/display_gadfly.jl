@@ -62,7 +62,7 @@ mutable struct Figure <: Gtk.GtkBox
     end
 end
 
-Base.isempty(f::Figure) = f.prepped == nothing
+Base.isempty(f::Figure) = f.cc == nothing
 
 # These extract arguments of the arg-tuple that gets passed to
 # Gadfly.render_prepared
@@ -110,6 +110,20 @@ function Base.display(d::GadflyDisplay, p::Plot)
     f.prepped = Gadfly.render_prepare(p)
     # Render in the current state
     cc = render_finish(f.prepped; dynamic=false)
+    f.cc = apply_tweaks!(cc, f.tweaks)
+    # Render the figure
+    display(f.canvas, f)
+    gcf()
+end
+
+function Base.display(d::GadflyDisplay, cc::Compose.Context)
+    isempty(d.figs) && figure()
+    f = curfig(d)
+    # Clear data that might have applied to the previous plot
+    clear_hit(f)
+    clear_guidata(f.canvas)
+    clear_guistate!(f)
+    # Render in the current state
     f.cc = apply_tweaks!(cc, f.tweaks)
     # Render the figure
     display(f.canvas, f)
@@ -172,7 +186,7 @@ function setproperty!(figtag::Tuple{Int,Symbol}, val, prop::Symbol)
 end
 
 # Co-opt the REPL display
-Base.display(::REPL.REPLDisplay, ::MIME"text/html", p::Plot) = display(_display, p)
+Base.display(::REPL.REPLDisplay, ::MIME"text/html", p::Union{Plot,Compose.Context}) = display(_display, p)
 
 render_backend(c) = Compose.ImmerseBackend(Gtk.cairo_surface(c))
 
