@@ -1,15 +1,10 @@
-__precompile__()
-
 module Immerse
 
 using GtkUtilities, Colors, Reexport, Compat, REPL, Graphics
 @reexport using Gadfly
 import Gtk   # because both Gadfly and Gtk define draw
-import Compose, Measures
-using Cairo
-
-@eval Compose begin import Cairo end
-Compose.link_cairo()
+import Measures
+using Compose, Cairo
 
 export
     Figure,
@@ -33,5 +28,16 @@ include("display_gadfly.jl")
 include("hit_test.jl")
 # using .HitTest
 include("select.jl")
+
+function __init__()
+    Compose.link_cairo()
+    
+    #set white background for default Theme
+    t = Theme()
+    t.panel_fill = colorant"white"
+    Gadfly.push_theme(t)
+    
+    pushdisplay(_display)
+end
 
 end # module

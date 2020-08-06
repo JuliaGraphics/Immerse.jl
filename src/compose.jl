@@ -10,7 +10,6 @@ using Compose: Form, Line, Circle
 using Compose: Property, Stroke, Fill, LineWidth, Visible, SVGClass
 using Compose: List, ListNode, ListNull
 using Compose: Transform, IdentityTransform, MatrixTransform, UnitBox
-using Compose: absolute_native_units
 
 start(l::List) = l
 next(::List, l::List) = (l.head, l.tail)
@@ -345,12 +344,12 @@ native(form::F, backend::B, coords::C) where {F,B,C} = FormNativeIterator{F,B,C}
 # Scalars and points
 function native(m::Measure, backend::Backend, coords)
     box, units, transform = coords
-    absolute_native_units(backend, resolve(box, units, transform, m))
+    Compose.absolute_native_units(backend, resolve(box, units, transform, m))
 end
 
 function native(m::Tuple{Measure,Measure}, backend::Backend, coords)
     box, units, transform = coords
-    absolute_native_units(backend, resolve(box, units, transform, m))
+    Compose.absolute_native_units(backend, resolve(box, units, transform, m))
 end
 
 # Iteration for specific Forms
