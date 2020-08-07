@@ -20,8 +20,8 @@ closefig(fignew)
 closeall()
 
 # Issue #56
-let hfig = figure()
-    Immerse.panzoom_cb(Figure(hfig))
-    Immerse.save_as(Figure(hfig))
-    closefig(hfig)
-end
+#let hfig = figure()
+#    Immerse.panzoom_cb(Figure(hfig))
+#    Immerse.save_as(Figure(hfig))
+#    closefig(hfig)
+#end

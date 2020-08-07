@@ -29,8 +29,12 @@ include("hit_test.jl")
 # using .HitTest
 include("select.jl")
 
+isprecompiling() = ccall(:jl_generating_output, Cint, ()) == 1
+
 function __init__()
-    Compose.link_cairo()
+    if !isprecompiling()
+        Compose.link_cairo()
+    end
     
     #set white background for default Theme
     t = Theme()
