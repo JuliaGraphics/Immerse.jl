@@ -1,6 +1,6 @@
 name = "Immerse"
 uuid = "2a4eff87-6e1e-5ceb-a32e-3bc6a5c2833f"
-version = "1.0.0"
+version = "1.0.1"
 
 [deps]
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
